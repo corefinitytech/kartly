@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #f6f4ef;
+  --color-surface: #ffffff;
+  --color-sunken: #efece5;
+  --color-line: #ddd8ce;
+  --color-lineStrong: #c4beb1;
+  --color-ink: #1b1f1e;
+  --color-inkSoft: #4f5754;
+  --color-inkMuted: #5f6663;
+  --color-brand: #0f4c4a;
+  --color-brandDeep: #0e3f3d;
+  --color-brandLink: #0b5c59;
+  --color-brandTint: #e3eeec;
+  --color-accent: #c2410c;
+  --color-accentHover: #a63709;
+  --color-accentPressed: #8f2f07;
+  --color-success: #1f7a45;
+  --color-warning: #8a5a00;
+  --color-warningTint: #fff4d6;
+  --color-danger: #b42318;
+  --color-dangerTint: #fdecea;
+  --color-star: #b7791f;
+
+  --font-heading: var(--font-source-serif), ui-serif, Georgia, serif;
+  --font-body: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.5;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.5;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 1.2;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 1.2;
+  --text-4xl: 2.375rem;
+  --text-4xl--line-height: 1.2;
+
+  --radius-badge: 4px;
+  --radius-btn: 6px;
+  --radius-card: 8px;
+
+  --shadow-pop: 0 1px 2px rgba(27, 31, 30, 0.06), 0 8px 24px rgba(27, 31, 30, 0.08);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    line-height: 1.2;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+.label-caps {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.price {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

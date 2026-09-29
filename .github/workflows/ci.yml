@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values so env validation passes during typecheck/build
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      PII_ENC_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      IP_HASH_SALT: ci-salt
+      CRON_SECRET: ci-secret
+      APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+      - run: npm audit --audit-level=high
