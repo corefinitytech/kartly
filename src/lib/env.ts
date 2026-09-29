@@ -26,4 +26,12 @@ if (!parsed.success) {
   throw new Error(`Invalid environment variables: ${issues}`);
 }
 
-export const env = parsed.data;
+const appUrl =
+  parsed.data.APP_URL ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
+if (!appUrl) {
+  throw new Error("Invalid environment variables: APP_URL: Required (or set on Vercel, which provides VERCEL_URL)");
+}
+
+export const env = { ...parsed.data, APP_URL: appUrl };
