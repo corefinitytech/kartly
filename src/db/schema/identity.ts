@@ -1,29 +1,31 @@
+import { relations } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   pgTable,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 
 export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
     email: text("email").notNull(),
-    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
-    passwordHash: text("password_hash"),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
     role: text("role").notNull().default("customer"),
     status: text("status").notNull().default("active"),
-    name: text("name"),
     phoneEnc: text("phone_enc"),
     locale: text("locale").notNull().default("en"),
     referralCode: text("referral_code"),
     ageConfirmedAt: timestamp("age_confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("users_email_unique").on(t.email)],
 );
@@ -35,13 +37,14 @@ export const sessions = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    tokenHash: text("token_hash").notNull(),
+    token: text("token").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    ipHash: text("ip_hash"),
+    ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("sessions_token_hash_unique").on(t.tokenHash)],
+  (t) => [uniqueIndex("sessions_token_unique").on(t.token), index("sessions_user_id_idx").on(t.userId)],
 );
 
 export const accounts = pgTable(
@@ -51,11 +54,35 @@ export const accounts = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider").notNull(),
-    providerAccountId: text("provider_account_id").notNull(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    password: text("password"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("accounts_provider_unique").on(t.provider, t.providerAccountId)],
+  (t) => [
+    uniqueIndex("accounts_provider_unique").on(t.providerId, t.accountId),
+    index("accounts_user_id_idx").on(t.userId),
+  ],
+);
+
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("verifications_identifier_idx").on(t.identifier)],
 );
 
 export const addresses = pgTable(
@@ -66,7 +93,7 @@ export const addresses = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     label: text("label"),
-    nameEnc: text("name_enc"),
+    nameEnc: text("name_enc").notNull(),
     line1Enc: text("line1_enc").notNull(),
     line2Enc: text("line2_enc"),
     city: text("city").notNull(),
@@ -76,6 +103,7 @@ export const addresses = pgTable(
     phoneEnc: text("phone_enc"),
     isDefaultShipping: boolean("is_default_shipping").notNull().default(false),
     isDefaultBilling: boolean("is_default_billing").notNull().default(false),
+    position: integer("position").notNull().default(0),
   },
   (t) => [index("addresses_user_id_idx").on(t.userId)],
 );

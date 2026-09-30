@@ -5,22 +5,32 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { ProductDetail } from "@/modules/catalog/types";
 
-export function ProductGallery({ images, title }: { images: ProductDetail["images"]; title: string }) {
+export function ProductGallery({
+  images,
+  title,
+  variantLabel = "",
+}: {
+  images: ProductDetail["images"];
+  title: string;
+  variantLabel?: string;
+}) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = images[activeIndex] ?? images[0];
-  const alt = active?.alt || title;
+  const alt = active?.alt || `${title}${variantLabel ? ` — ${variantLabel}` : ""}`;
 
   return (
     <div>
       <div className="aspect-square w-full rounded-card bg-sunken p-3">
         {active ? (
           <Image
+            key={active.url}
             src={active.url}
             alt={alt}
             width={720}
             height={720}
             priority
-            className="h-full w-full object-contain"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="anim-fade-in h-full w-full object-contain"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-inkMuted">No image</div>
@@ -36,7 +46,7 @@ export function ProductGallery({ images, title }: { images: ProductDetail["image
                 aria-label={`Show image ${index + 1}`}
                 aria-current={index === activeIndex}
                 className={cn(
-                  "h-16 w-16 shrink-0 rounded-btn border bg-sunken p-1.5 transition-colors duration-150",
+                  "h-16 w-16 shrink-0 rounded-btn border bg-sunken p-1.5 transition-theme",
                   index === activeIndex ? "border-brand" : "border-line hover:border-lineStrong",
                 )}
               >

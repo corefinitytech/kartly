@@ -4,7 +4,7 @@
 
 | Data | Retention | Basis |
 |---|---|---|
-| Unverified accounts | 7 days | Data minimisation |
+| Unverified accounts | 7 days | Data minimisation (purge job planned for M6) |
 | Sessions | 30 days sliding, deleted on expiry | Security |
 | Guest carts and abandoned carts | 30 days | Data minimisation |
 | Password reset and verification tokens | Deleted on use or expiry | Security |

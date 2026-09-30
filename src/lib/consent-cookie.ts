@@ -32,7 +32,7 @@ export function serializeConsentCookie(decision: ConsentDecision, anonId: string
 export function parseConsentCookie(value: string | undefined): ConsentCookie | null {
   if (!value) return null;
   try {
-    return consentCookieSchema.parse(JSON.parse(value));
+    return consentCookieSchema.parse(JSON.parse(decodeURIComponent(value)));
   } catch {
     return null;
   }

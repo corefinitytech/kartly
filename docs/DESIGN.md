@@ -61,7 +61,7 @@ Loaded with `next/font/google` (Source Serif 4: 600/700; Public Sans: 400/500/60
 - Depth from 1px `line` borders, not shadows. One soft shadow only for popovers, dropdowns and the mobile bottom sheet: `0 1px 2px rgba(27,31,30,0.06), 0 8px 24px rgba(27,31,30,0.08)`.
 - No gradients, glass, blur, glows, decorative blobs, gradient text.
 - Touch targets ≥ 44px tall on mobile.
-- Motion: 150ms ease-out hover/focus, 200ms sheets/dropdowns. No bounce, float, parallax, hover scale. `prefers-reduced-motion` respected. Skeletons: plain pulse.
+- Motion: micro animations are allowed for feedback and orientation only, using CSS transitions and keyframes, animating only opacity and transform, never layout properties. Tokens: 120ms hover/press, 180ms dropdowns/fades, 240ms sheets/dialogs, easing cubic-bezier(0.2, 0, 0, 1). Still no bounce, float, parallax, looping decorative motion, or scale on hover. One global `prefers-reduced-motion` rule removes all transitions and animations. No animation library. Skeletons: plain pulse.
 
 ## Assets
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 
-export const metadata: Metadata = { title: "Terms of service" };
+export const metadata: Metadata = { title: "Terms of service", description: "The terms that apply when you order from Kartly." };
 
 export default function Page() {
   return (

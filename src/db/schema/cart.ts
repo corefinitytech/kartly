@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const carts = pgTable(
@@ -7,9 +7,13 @@ export const carts = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"),
     guestTokenHash: text("guest_token_hash"),
+    estimateCountry: text("estimate_country"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("carts_user_id_idx").on(t.userId), index("carts_guest_token_hash_idx").on(t.guestTokenHash)],
+  (t) => [
+    uniqueIndex("carts_user_id_unique").on(t.userId),
+    uniqueIndex("carts_guest_token_hash_unique").on(t.guestTokenHash),
+  ],
 );
 
 export const cartItems = pgTable(
@@ -24,7 +28,10 @@ export const cartItems = pgTable(
     savedForLater: boolean("saved_for_later").notNull().default(false),
     addedPriceCents: integer("added_price_cents").notNull(),
   },
-  (t) => [index("cart_items_cart_id_idx").on(t.cartId)],
+  (t) => [
+    index("cart_items_cart_id_idx").on(t.cartId),
+    uniqueIndex("cart_items_cart_variant_unique").on(t.cartId, t.variantId),
+  ],
 );
 
 export const cartsRelations = relations(carts, ({ many }) => ({

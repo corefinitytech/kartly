@@ -204,28 +204,28 @@ export async function productDetail(slug: string): Promise<{
   const product = products[0] ?? null;
   if (!product) return { product: null, images: [], variants: [], categoryPath: [] };
 
-  const images = await db.execute<{ url: string; alt: string | null; position: number }>(sql`
-    select url, alt, position from product_images
-    where product_id = ${product.id} order by position asc
-  `);
-
-  const variants = await db.execute<{
-    id: string; sku: string; options_json: string; price_cents: number;
-    compare_at_cents: number | null; stock_qty: number; low_stock_threshold: number;
-  }>(sql`
-    select id, sku, options_json, price_cents, compare_at_cents, stock_qty, low_stock_threshold
-    from product_variants where product_id = ${product.id} order by price_cents asc
-  `);
-
-  const categoryPath = await db.execute<{ slug: string; name: string }>(sql`
-    with recursive up as (
-      select id, slug, name, parent_id, 0 as depth from categories where id = ${product.category_id}
-      union all
-      select c.id, c.slug, c.name, c.parent_id, up.depth + 1
-      from categories c join up on c.id = up.parent_id
-    )
-    select slug, name from up order by depth desc
-  `);
+  const [images, variants, categoryPath] = await Promise.all([
+    db.execute<{ url: string; alt: string | null; position: number }>(sql`
+      select url, alt, position from product_images
+      where product_id = ${product.id} order by position asc
+    `),
+    db.execute<{
+      id: string; sku: string; options_json: string; price_cents: number;
+      compare_at_cents: number | null; stock_qty: number; low_stock_threshold: number;
+    }>(sql`
+      select id, sku, options_json, price_cents, compare_at_cents, stock_qty, low_stock_threshold
+      from product_variants where product_id = ${product.id} order by price_cents asc
+    `),
+    db.execute<{ slug: string; name: string }>(sql`
+      with recursive up as (
+        select id, slug, name, parent_id, 0 as depth from categories where id = ${product.category_id}
+        union all
+        select c.id, c.slug, c.name, c.parent_id, up.depth + 1
+        from categories c join up on c.id = up.parent_id
+      )
+      select slug, name from up order by depth desc
+    `),
+  ]);
 
   return { product, images, variants, categoryPath };
 }

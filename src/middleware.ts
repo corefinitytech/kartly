@@ -27,5 +27,16 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/search",
+    "/cart",
+    "/account/:path*",
+    "/checkout/:path*",
+    "/signup",
+    "/login",
+    "/forgot-password",
+    "/reset-password",
+    "/verify-email",
+    "/api/:path*",
+  ],
 };

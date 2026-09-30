@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-30 (M3: accounts)
+Better Auth foundation (argon2id hooks, DB sessions with hashed IPs, table reconciliation migration 0003, ADR-0003), rate-limited auth handler, Resend mailer with accessible templates, signup/login/forgot/reset/verify pages with full form UX, account area (overview, profile with encrypted phone, security, encrypted addresses with defaults and a 10-address cap), guest cart merge into the user cart, header signed-in state, audit entries for auth and account actions, and pure-logic tests. Catalog routes remain static.
+
+Files touched: package.json, .env.example, drizzle/0003_auth_tables.sql, src/db/schema/{identity,cart}.ts, src/lib/{auth,auth-client,mailer,env,ratelimit}.ts, src/modules/auth/{actions,password,session,safe-next,lockout,tokens,emails}.ts + tests, src/modules/addresses/{schemas,service,actions}.ts + test, src/modules/cart/{merge,merge-service}.ts + test, src/app/api/auth/[...all]/route.ts, src/app/api/cart/{_shared.ts,merge/}, src/app/{signup,login,forgot-password,reset-password,verify-email}/*, src/app/account/{layout,page,nav,profile,security,addresses}/*, src/components/auth/form-kit.tsx, src/components/layout/site-header.tsx, src/components/cart/cart-page-client.tsx, src/middleware.ts, docs/{adr/0003-auth,data-map,cookies,sub-processors,ROPA,retention,ASSUMPTIONS}.md.
+
+## 2026-09-29 (M2: guest cart and pricing engine)
+Shipping/tax/settings tables with idempotent settings seed, pure pricing engine with largest-remainder allocations and property tests, guest cart module (hashed token cookie, owner-scoped service and repo, clamped atomic upserts, price-change and unavailable flags) with rate-limited API routes, client cart store with optimistic updates and ARIA announcements, wired header badge and product buy box, mini cart drawer, and a full cart page with estimates, country select and mobile sticky bar. Catalog routes remain static (all cart state is client-side after hydration).
+
+Files touched: drizzle/0002_grey_squirrel_girl.sql, src/db/schema/{settings,cart,index}.ts, scripts/seed-settings.ts, package.json, src/modules/checkout/pricing.ts + test, src/modules/cart/{identity,schemas,repo,service}.ts + identity.test, src/app/api/cart/{route,count/items,items/[id],estimate}, src/components/cart/{cart-store,buy-box,mini-cart,cart-page-client}.tsx, src/components/ui/{overlay,toast}.tsx, src/components/layout/site-header.tsx, src/app/layout.tsx, src/app/p/[slug]/page.tsx, src/app/cart/page.tsx, src/app/globals.css, src/lib/ratelimit.ts, docs/{cookies,data-map,ROPA,ASSUMPTIONS}.md.
+
+## 2026-09-29 (build fix)
+Moved the SVG favicon from src/app/icon.svg (file convention crashed page data collection) to public/icon.svg and referenced it through metadata icons.
+
+Files touched: public/icon.svg, src/app/layout.tsx.
+
+## 2026-09-29 (M1 polish, SEO and performance pass)
+Category display names and ordering, header More dropdown and mobile scroll strip, redesigned cookie banner and dialogs with focus traps and exit animations, micro animation token set, cart/account placeholders, ratings honesty fixes, empty-alt card images, full SEO layer (metadata, canonicals, OG/Twitter, generated social images, robots, sitemap, manifest, JSON-LD without fake ratings), static rendering for catalog routes with cached queries, static CSP split with ADR-0002, LCP/a11y groundwork, and docs/SEO.md + docs/LIGHTHOUSE.md.
+
+Files touched: src/app/globals.css, src/app/layout.tsx, src/app/page.tsx, src/app/{cart,account}/page.tsx, src/app/{opengraph-image,twitter-image,apple-icon,manifest,robots,sitemap}.tsx, src/app/{privacy,cookies,terms,returns,contact,faq}/page.tsx, src/app/c/[slug]/page.tsx, src/app/p/[slug]/page.tsx, src/app/search/page.tsx, src/middleware.ts, next.config.ts, src/components/consent-provider.tsx, src/components/consent/{shared,customize-dialog}.tsx, src/components/layout/{site-header,site-footer}.tsx, src/components/listing/{listing-view,filters,filter-sheet,sort-pagination}.tsx, src/components/product/{gallery,buy-box}.tsx, src/components/{product-card,json-ld,route-progress,use-bump,add-to-cart-button}.tsx, src/components/ui/{overlay,toast}.tsx, src/modules/catalog/{category-names.ts + test,service.ts}, src/lib/{seo.ts + test,consent-cookie.ts}, docs/{DESIGN.md,SEO.md,LIGHTHOUSE.md,ASSUMPTIONS.md,adr/0002-static-csp-catalog.md}.
+
 ## 2026-09-29 (M1 fix)
 Fixed a runtime crash in the root layout: ConsentProvider no longer takes render-prop children (functions cannot cross the server-to-client boundary in Next 15). SiteFooter now reads openSettings from useConsent() directly.
 

@@ -61,7 +61,7 @@ export function Pagination({
           <ChevronLeft strokeWidth={1.75} className="h-5 w-5" />
         </Link>
       ) : null}
-      <span className="px-2 text-sm text-inkSoft">
+      <span aria-current="page" className="px-2 text-sm text-inkSoft">
         Page {page} of {pageCount}
       </span>
       {page < pageCount ? (

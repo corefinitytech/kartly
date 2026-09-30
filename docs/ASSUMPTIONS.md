@@ -27,3 +27,35 @@ Decisions taken under ambiguity, per PRD Section 0 rule 7. Each is the smallest 
 20. **Legal pages** live at `/privacy`, `/cookies`, `/terms`, `/returns`, `/contact`, `/faq` (flat paths, footer links updated accordingly).
 21. **Accent buttons:** the disabled Add to cart button uses accent at reduced opacity (60%) with the label "Cart opens soon", since a fully-styled accent button communicates the intended M2 design better than a grey one.
 22. **No new dependencies were added**; fonts ship via `next/font/google` (self hosted at build) and lucide-react was already present.
+
+## M1 polish pass
+
+23. **Structured data omits aggregateRating** deliberately: seed ratings are synthetic and publishing them would break search engine guidelines (recorded per brief).
+24. **Category display names** are derived from slugs (`category-names.ts`); the DB `name` column is no longer trusted for display.
+25. **Static CSP tradeoff:** catalog/legal routes use a fixed CSP with `'unsafe-inline'` scripts instead of a nonce, because those pages are statically generated and render no user supplied HTML. Full reasoning in `docs/adr/0002-static-csp-catalog.md`.
+26. **The consent cookie read moved to the client** to keep catalog routes static; the banner renders only after mount, so static HTML ships without it and nothing flashes for returning visitors (one frame of banner on first paint for new visitors is the accepted cost).
+27. **The mobile category strip fade** uses a CSS mask (not a painted gradient), keeping the no-gradients rule.
+28. **og:type on product pages stays `website`**; the price is exposed via metadata `other` (`product:price:amount`/`currency`) because Next has no first-class Open Graph `product` type and renders `other` as name-based meta tags.
+29. **The typeahead dropdown stays in the initial bundle** (tiny, conditionally rendered, and its data loads on demand); the cookie dialog and filter sheet use `next/dynamic`.
+30. **Cart and account placeholder pages** use a text link as the home action because the shared EmptyState action requires a client callback; the pages are noindex and will be replaced.
+31. **generateStaticParams for products covers the first 200 slugs** with `dynamicParams = true` so the rest render (and cache) on demand.
+
+## M2
+
+32. **Cart token is hashed, not signed** (brief allows either): the cookie holds a random 32-byte token, the database stores only its SHA256 hash. A stolen database cannot be used to hijack carts.
+33. **Tax rates and shipping methods are clearly labelled demo data**; the estimate country defaults to US (settings row) and unknown countries price tax at zero.
+34. **The estimate always uses the cheapest active shipping method** (Standard) since checkout does not exist yet; the cart page shows the method name so the number is not mysterious.
+35. **Per-line tax excludes the tax on shipping**: line taxes are an exact largest-remainder allocation of the goods tax, so refund math stays correct; shipping tax is kept only in the summary total.
+36. **PATCH /api/cart/items/[id] treats quantity 0 as a delete** and `[id]` is the variant UUID; there is no separate line id in the UI.
+37. **The mini cart subtotal comes from the store's most recent view** (refreshed right after the add), falling back to the added item's price on a race.
+38. **`kt_cart` is set only on the first successful add** (strictly necessary, HttpOnly, 30 days sliding); plain page views and GETs never set it.
+
+## M3
+
+39. **Schema reconciliation:** Better Auth's expected columns replace `users.password_hash` and `users.email_verified_at` (credential hash now lives in `accounts.password`; verification is the boolean `email_verified`). Our listed columns (role, status, phone_enc, locale, referral_code, age_confirmed_at) are kept. Sessions store the library's `token` column; the library hashes tokens itself, and our hook replaces the stored `ip_address` with a salted SHA-256 hash so no raw IP is kept.
+40. **Cart merge trigger:** Better Auth hooks do not expose the guest cookie, so the merge runs server-side inside the sign-in/sign-up server actions (reading `kt_cart` from the request cookies), with `POST /api/cart/merge` as a fallback.
+41. **Password reset revokes sessions** through Better Auth's default reset behaviour (single-use token, 1 hour); `revokeSessions` is not an explicit body option in this version.
+42. **Timing-safe sign-in:** unknown emails verify a dummy argon2id hash before returning the same generic error, on top of the library's own handling.
+43. **Emails carry only the first name and a link.** Send failures never fail the flow; the mailer logs the subject only, no PII.
+44. **`kt_cart_merged` notice** is delivered by reading the merge result directly in the sign-in action redirect; no extra cookie is used.
+45. **Snapshot divergence:** migration 0003 is hand-written (`--custom`); future drizzle generates may re-diff the auth tables until the snapshot is realigned, so review generated SQL for auth tables before applying.

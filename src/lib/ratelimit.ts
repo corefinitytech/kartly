@@ -5,13 +5,15 @@ interface RateLimitPolicy {
 
 export const RATE_LIMIT_POLICIES = {
   search: { limit: 60, windowSeconds: 60 },
-  login: { limit: 5, windowSeconds: 900 },
-  signup: { limit: 5, windowSeconds: 3600 },
+  signIn: { limit: 5, windowSeconds: 900 },
+  signUp: { limit: 5, windowSeconds: 3600 },
   passwordReset: { limit: 3, windowSeconds: 3600 },
+  verificationResend: { limit: 3, windowSeconds: 3600 },
   checkout: { limit: 10, windowSeconds: 60 },
   orderLookup: { limit: 10, windowSeconds: 3600 },
   dsar: { limit: 3, windowSeconds: 86400 },
   consent: { limit: 20, windowSeconds: 3600 },
+  cartMutate: { limit: 60, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;

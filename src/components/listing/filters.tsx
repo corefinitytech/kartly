@@ -8,7 +8,7 @@ import type { ListingFacets } from "@/modules/catalog/types";
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-interface FiltersProps {
+export interface FiltersProps {
   basePath: string;
   params: ListingParams;
   facets: ListingFacets;
@@ -29,7 +29,7 @@ function FilterLink({
       href={href}
       scroll={false}
       className={cn(
-        "inline-flex min-h-11 items-center rounded-badge border px-3 text-sm transition-colors duration-150",
+        "inline-flex min-h-11 items-center rounded-badge border px-3 text-sm transition-theme",
         active
           ? "border-brand bg-brandTint font-medium text-ink"
           : "border-line bg-surface text-inkSoft hover:border-lineStrong hover:text-ink",
@@ -40,7 +40,14 @@ function FilterLink({
   );
 }
 
-function FiltersBody({ basePath, params, facets, active }: FiltersProps) {
+const PRICE_RANGES = [
+  { label: "Under $25", min: undefined, max: 2500 },
+  { label: "$25 to $100", min: 2500, max: 10000 },
+  { label: "$100 to $500", min: 10000, max: 50000 },
+  { label: "$500 and up", min: 50000, max: undefined },
+];
+
+export function FiltersBody({ basePath, params, facets, active }: FiltersProps) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
@@ -58,12 +65,7 @@ function FiltersBody({ basePath, params, facets, active }: FiltersProps) {
 
       <div className="flex flex-wrap items-center gap-2">
         <p className="label-caps w-full text-inkMuted">Price</p>
-        {[
-          { label: "Under $25", min: undefined, max: 2500 },
-          { label: "$25 to $100", min: 2500, max: 10000 },
-          { label: "$100 to $500", min: 10000, max: 50000 },
-          { label: "$500 and up", min: 50000, max: undefined },
-        ].map((range) => (
+        {PRICE_RANGES.map((range) => (
           <FilterLink
             key={range.label}
             href={buildListingUrl(basePath, params, { minPrice: range.min, maxPrice: range.max })}
@@ -105,14 +107,21 @@ function FiltersBody({ basePath, params, facets, active }: FiltersProps) {
               key={f.key}
               href={buildListingUrl(basePath, withoutFilter(params, f.key))}
               scroll={false}
-              className="inline-flex min-h-9 items-center gap-1 rounded-badge bg-brandTint px-3 text-sm text-ink"
+              className="anim-chip-in inline-flex min-h-9 items-center gap-1 rounded-badge bg-brandTint px-3 text-sm text-ink"
             >
               {f.label}
               <X strokeWidth={1.75} className="h-4 w-4" aria-label={`Remove ${f.label}`} />
             </Link>
           ))}
           <Link
-            href={buildListingUrl(basePath, { ...params, brand: undefined, minPrice: undefined, maxPrice: undefined, minRating: undefined, inStock: undefined })}
+            href={buildListingUrl(basePath, {
+              ...params,
+              brand: undefined,
+              minPrice: undefined,
+              maxPrice: undefined,
+              minRating: undefined,
+              inStock: undefined,
+            })}
             scroll={false}
             className="min-h-9 text-sm text-brandLink underline underline-offset-4"
           >
@@ -126,31 +135,9 @@ function FiltersBody({ basePath, params, facets, active }: FiltersProps) {
 
 export function FiltersSidebar(props: FiltersProps) {
   return (
-    <aside aria-label="Filters" className="rounded-card border border-line bg-surface p-4 lg:sticky lg:top-32">
+    <aside aria-label="Filters" className="rounded-card border border-line bg-surface p-4 lg:sticky lg:top-40">
       <FiltersBody {...props} />
     </aside>
-  );
-}
-
-export function FiltersBottomSheet({ open, onClose, ...props }: FiltersProps & { open: boolean; onClose: () => void }) {
-  if (!open) return null;
-  return (
-    <div role="dialog" aria-modal="true" aria-label="Filters" className="fixed inset-0 z-50 flex items-end lg:hidden">
-      <div className="max-h-[80vh] w-full overflow-y-auto rounded-t-card border border-line bg-surface p-4 shadow-pop">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Filters</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close filters"
-            className="flex h-11 w-11 items-center justify-center rounded-btn hover:bg-sunken"
-          >
-            <X strokeWidth={1.75} className="h-5 w-5" />
-          </button>
-        </div>
-        <FiltersBody {...props} />
-      </div>
-    </div>
   );
 }
 

@@ -15,6 +15,20 @@
       "when": 1790683250751,
       "tag": "0001_search_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790705633614,
+      "tag": "0002_grey_squirrel_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790708901716,
+      "tag": "0003_auth_tables",
+      "breakpoints": true
     }
   ]
 }

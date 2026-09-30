@@ -48,6 +48,11 @@
   --radius-card: 8px;
 
   --shadow-pop: 0 1px 2px rgba(27, 31, 30, 0.06), 0 8px 24px rgba(27, 31, 30, 0.08);
+
+  --ease-out-quad: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-fade: 180ms;
+  --duration-sheet: 240ms;
 }
 
 @layer base {
@@ -77,14 +82,33 @@
   textarea {
     font-size: 1rem;
   }
+  a,
+  button,
+  input,
+  select,
+  label {
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out-quad);
+  }
+  button:active {
+    transform: translateY(1px);
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+@utility transition-theme {
+  transition-property: background-color, border-color, color;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out-quad);
 }
 
 .label-caps {
@@ -96,4 +120,153 @@
 .price {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes chip-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bump {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes indeterminate-bar {
+  from {
+    transform: scaleX(0);
+  }
+  50% {
+    transform: scaleX(0.7);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.anim-fade-in {
+  animation: fade-in var(--duration-fade) var(--ease-out-quad);
+}
+
+.anim-fade-slide-up {
+  animation: fade-slide-up var(--duration-sheet) var(--ease-out-quad);
+}
+
+.anim-dropdown-in {
+  animation: dropdown-in var(--duration-fade) var(--ease-out-quad);
+}
+
+.anim-drawer-in {
+  animation: drawer-in var(--duration-sheet) var(--ease-out-quad);
+}
+
+.anim-sheet-in {
+  animation: sheet-in var(--duration-sheet) var(--ease-out-quad);
+}
+
+.anim-chip-in {
+  animation: chip-in var(--duration-fade) var(--ease-out-quad);
+}
+
+.anim-chip-out {
+  animation: chip-out var(--duration-fast) var(--ease-out-quad) forwards;
+}
+
+.anim-toast-in {
+  animation: toast-in var(--duration-fade) var(--ease-out-quad);
+}
+
+.anim-bump {
+  animation: bump 200ms var(--ease-out-quad);
+}
+
+.anim-indeterminate {
+  transform-origin: left;
+  animation: indeterminate-bar 800ms var(--ease-out-quad) infinite;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }

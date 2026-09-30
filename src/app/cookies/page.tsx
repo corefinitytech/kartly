@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 
-export const metadata: Metadata = { title: "Cookie policy" };
+export const metadata: Metadata = { title: "Cookie policy", description: "The small set of first-party cookies Kartly uses and how to change your choice." };
 
 export default function Page() {
   return (

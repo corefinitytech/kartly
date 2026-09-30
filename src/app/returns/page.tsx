@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 
-export const metadata: Metadata = { title: "Returns policy" };
+export const metadata: Metadata = { title: "Returns policy", description: "Return most items within 30 days of delivery for a refund." };
 
 export default function Page() {
   return (
