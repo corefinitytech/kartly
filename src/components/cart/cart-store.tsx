@@ -50,6 +50,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const body = (await response.json()) as { data?: { count?: number; cart?: CartView | null } };
     if (seq !== sequence.current) return;
     if (typeof body.data?.count === "number") setCount(body.data.count);
+    else if (body.data?.cart !== undefined) setCount(body.data.cart?.count ?? 0);
     if (body.data?.cart !== undefined) setView(body.data.cart);
     setLoaded(true);
     setError(false);
@@ -60,18 +61,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const seq = sequence.current;
     setLoading(true);
     try {
-      const [countResponse, viewResponse] = await Promise.all([
-        fetch("/api/cart/count", { cache: "no-store" }),
-        fetch("/api/cart", { cache: "no-store" }),
-      ]);
-      await applyResponse(countResponse, seq);
-      await applyResponse(viewResponse, seq);
+      // One request: the cart view carries its own count.
+      const response = await fetch("/api/cart", { cache: "no-store" });
+      if (!response.ok) throw new Error("cart request failed");
+      const body = (await response.json()) as { data?: { cart?: CartView | null } };
+      if (seq !== sequence.current) return;
+      const cart = body.data?.cart ?? null;
+      setView(cart);
+      setCount(cart?.count ?? 0);
+      setLoaded(true);
+      setError(false);
     } catch {
       if (seq === sequence.current) setError(true);
     } finally {
       if (seq === sequence.current) setLoading(false);
     }
-  }, [applyResponse]);
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -93,25 +98,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback(
     async (variantId: string, title: string, quantity: number): Promise<AddResult | null> => {
+      // Optimistic: the badge moves on click; the server's answer corrects it.
+      const before = count;
+      setCount((c) => (c ?? 0) + quantity);
       try {
         const { response, seq } = await mutate("/api/cart/items", "POST", { variantId, quantity });
         if (!response.ok) throw new Error("add failed");
-        const body = (await response.json()) as { data: AddResult };
+        const body = (await response.json()) as { data: AddResult & { cart?: CartView | null } };
         if (seq !== sequence.current) return body.data;
         setCount(body.data.cartCount);
-        await refresh();
+        if (body.data.cart !== undefined) setView(body.data.cart);
+        setLoaded(true);
+        setError(false);
         return body.data;
       } catch {
+        setCount(before);
         setError(true);
         return null;
       }
     },
-    [mutate, refresh],
+    [count, mutate],
   );
 
   const setQuantity = useCallback(
     async (variantId: string, quantity: number) => {
       const previous = view;
+      // Optimistic: show the new quantity now; the server's cart replaces it.
+      if (previous) {
+        const lines = previous.lines.map((l) => (l.variantId === variantId ? { ...l, quantity } : l));
+        setView({ ...previous, lines });
+        setCount(lines.reduce((sum, l) => sum + (l.unavailable ? 0 : l.quantity), 0));
+      }
       try {
         const { response, seq } = await mutate(`/api/cart/items/${variantId}`, "PATCH", { quantity });
         if (!response.ok) throw new Error("quantity failed");
@@ -119,6 +136,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         announce(`Quantity updated to ${quantity}`);
       } catch {
         setView(previous);
+        setCount(previous?.count ?? null);
         setError(true);
       }
     },
@@ -162,12 +180,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         quantity: removed.quantity,
       });
       if (!response.ok) throw new Error("undo failed");
-      await refresh();
+      const body = (await response.json()) as { data: AddResult & { cart?: CartView | null } };
+      if (body.data.cart !== undefined) setView(body.data.cart);
+      setCount(body.data.cartCount);
       announce(`${removed.title} restored`);
     } catch {
       setError(true);
     }
-  }, [announce, mutate, refresh]);
+  }, [announce, mutate]);
 
   const setCountry = useCallback(
     async (country: string) => {

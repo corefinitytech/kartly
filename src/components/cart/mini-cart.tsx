@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Check } from "lucide-react";
 import { Overlay } from "@/components/ui/overlay";
-import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/money";
 
 export function MiniCart({
@@ -48,9 +47,13 @@ export function MiniCart({
           >
             View cart
           </Link>
-          <Button variant="tertiary" disabled>
-            Checkout opens soon
-          </Button>
+          <a
+            href="/checkout"
+            onClick={onClose}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-btn bg-accent px-4 text-base font-medium text-white transition-colors duration-150 hover:bg-accentHover active:bg-accentPressed"
+          >
+            Checkout
+          </a>
         </div>
       </div>
     </Overlay>

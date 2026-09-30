@@ -6,9 +6,17 @@ import { AuthCard, ErrorSummary, PasswordField, SubmitButton, useAuthForm } from
 import { Input } from "@/components/ui/input";
 import { signInAction } from "@/modules/auth/actions";
 
-export function LoginForm({ next, notice }: { next?: string; notice?: string }) {
+export function LoginForm({
+  next,
+  notice,
+  prefill,
+}: {
+  next?: string;
+  notice?: string;
+  prefill?: { email: string; password: string };
+}) {
   const [state, formAction, pending] = useAuthForm(signInAction);
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(prefill?.password ?? "");
 
   return (
     <AuthCard title="Sign in">
@@ -20,11 +28,24 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
           </div>
         ) : null}
         <ErrorSummary state={state} />
+        {prefill ? (
+          <div role="status" className="rounded-badge bg-sunken px-3 py-2 text-sm text-inkSoft">
+            Store admin sign in. The demo admin account is filled in.
+          </div>
+        ) : null}
         <div>
           <label htmlFor="email" className="block text-sm text-inkSoft">
             Email
           </label>
-          <Input id="email" name="email" type="email" autoComplete="email" required className="mt-1" />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            defaultValue={prefill?.email}
+            className="mt-1"
+          />
         </div>
         <PasswordField
           id="password"

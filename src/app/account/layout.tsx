@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/modules/auth/session";
+import { isStaffRole } from "@/modules/admin/permissions";
 import { AccountNav, VerifyBanner } from "./nav";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
     <div className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
       <VerifyBanner verified={user.emailVerified} />
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
-        <AccountNav firstName={user.name.split(" ")[0] ?? user.name} />
+        <AccountNav firstName={user.name.split(" ")[0] ?? user.name} showAdmin={isStaffRole(user.role)} />
         <div className="min-w-0">{children}</div>
       </div>
     </div>

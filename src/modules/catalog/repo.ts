@@ -82,7 +82,7 @@ export async function findCategoryIds(slug: string): Promise<{ ids: string[]; ca
     with cat as (
       select id, slug, name, parent_id from categories where slug = ${slug}
     )
-    select c.id, c.slug, c.name, c.parent_id from cat
+    select id, slug, name, parent_id from cat
     union all
     select c.id, c.slug, c.name, c.parent_id from categories c
     join cat on c.parent_id = cat.id
@@ -171,8 +171,9 @@ export async function listingFacets(params: ListingParams, categoryIds: string[]
   `);
 
   const bounds = await db.execute<BoundsRow>(sql`
-    select min((v->>'price_cents')::int) as min_price, max((v->>'price_cents')::int) as max_price
-    from products p, ${bestVariant} as v
+    select min((select min(v.price_cents) from product_variants v where v.product_id = p.id)) as min_price,
+           max((select min(v.price_cents) from product_variants v where v.product_id = p.id)) as max_price
+    from products p
     where ${where}
   `);
 

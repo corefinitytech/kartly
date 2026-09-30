@@ -10,18 +10,20 @@ import { resendVerificationAction } from "@/modules/auth/actions";
 
 const LINKS = [
   { href: "/account", label: "Overview" },
+  { href: "/orders", label: "Orders" },
   { href: "/account/profile", label: "Profile" },
   { href: "/account/addresses", label: "Addresses" },
   { href: "/account/security", label: "Security" },
 ];
 
-export function AccountNav({ firstName }: { firstName: string }) {
+export function AccountNav({ firstName, showAdmin = false }: { firstName: string; showAdmin?: boolean }) {
   const pathname = usePathname();
+  const links = showAdmin ? [...LINKS, { href: "/admin", label: "Store admin" }] : LINKS;
   return (
     <nav aria-label="Account">
       <p className="mb-3 text-lg font-semibold">Hi, {firstName}</p>
       <ul className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {LINKS.map((link) => {
+        {links.map((link) => {
           const current = pathname === link.href;
           return (
             <li key={link.href} className="shrink-0">

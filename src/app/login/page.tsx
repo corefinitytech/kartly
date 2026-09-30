@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DEMO_ADMIN, demoAdminPrefillEnabled } from "@/modules/admin/demo";
 import { LoginForm } from "./form";
 
 export const metadata: Metadata = {
@@ -14,5 +15,10 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; notice?: string }>;
 }) {
   const { next, notice } = await searchParams;
-  return <LoginForm next={next} notice={notice} />;
+  // Signing in to the admin area: prefill the demo admin (dev, or DEMO_ADMIN_PREFILL=true).
+  const prefill =
+    next?.startsWith("/admin") && demoAdminPrefillEnabled()
+      ? { email: DEMO_ADMIN.email, password: DEMO_ADMIN.password }
+      : undefined;
+  return <LoginForm next={next} notice={notice} prefill={prefill} />;
 }

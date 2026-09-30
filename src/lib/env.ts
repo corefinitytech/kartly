@@ -16,6 +16,7 @@ const schema = z.object({
   EMAIL_FROM: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

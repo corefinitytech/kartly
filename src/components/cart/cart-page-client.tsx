@@ -177,9 +177,12 @@ function Summary({ sticky }: { sticky?: boolean }) {
           Add {formatCents(summary.freeShippingRemainingCents)} more for free shipping.
         </p>
       ) : null}
-      <Button variant="buy" disabled className="mt-4 w-full">
-        Checkout opens soon
-      </Button>
+      <a
+        href="/checkout"
+        className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-btn bg-accent px-4 text-base font-medium text-white transition-colors duration-150 hover:bg-accentHover active:bg-accentPressed"
+      >
+        Checkout
+      </a>
       <p className="mt-2 text-sm text-inkMuted">Shipping and tax are estimates until checkout.</p>
     </div>
   );
@@ -255,9 +258,12 @@ export function CartPageClient() {
       <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface p-3 shadow-pop lg:hidden">
         <div className="flex items-center gap-3">
           <span className="price text-lg">{formatCents(view.summary.totalCents)}</span>
-          <Button variant="buy" disabled className="ml-auto flex-1">
-            Checkout opens soon
-          </Button>
+          <a
+            href="/checkout"
+            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-btn bg-accent px-4 text-base font-medium text-white transition-colors duration-150 hover:bg-accentHover active:bg-accentPressed"
+          >
+            Checkout
+          </a>
         </div>
       </div>
       <div className="h-16 lg:hidden" />

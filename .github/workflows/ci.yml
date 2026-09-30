@@ -10,9 +10,10 @@ jobs:
       # Dummy values so env validation passes during typecheck/build
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
       PII_ENC_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-      IP_HASH_SALT: ci-salt
-      CRON_SECRET: ci-secret
+      IP_HASH_SALT: ci-salt-not-a-secret-0000
+      CRON_SECRET: ci-cron-not-a-secret-0000
       APP_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: ci-better-auth-secret-not-real-00000000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

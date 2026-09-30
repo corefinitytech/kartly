@@ -12,9 +12,11 @@
 | Notifications and email outbox | 90 days | Data minimisation |
 | DSAR export files | 24 hours | Data minimisation |
 | DSAR request records | 3 years | Accountability proof |
-| Audit log | 12 months | Security, Art. 32 |
+| Audit log | 12 months | Security, Art. 32. Append only: a database trigger blocks updates and blocks deletes of rows younger than 12 months (migration 0005) |
 | Consent records | Life of account + 3 years (proof) | Art. 7 |
-| Orders and invoices (anonymized after deletion) | 7 years | Tax/legal obligation (D-11) |
+| Orders and invoices (anonymized after deletion) | 7 years | Tax/legal obligation (D-11). Unpaid orders are cancelled after 30 minutes with stock restored |
+| Shipments and refunds (M5) | 7 years with their order, anonymized with it | Tax/legal obligation (D-11) |
+| Inventory ledger (M5) | Life of the variant (cascade deleted with it) | Stock accountability; staff id only, no customer data |
 | Server logs | 30 days | Security |
 | Inactive accounts | P2: notify at 23 months, delete at 24 | Data minimisation |
 

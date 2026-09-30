@@ -128,41 +128,37 @@ export async function getCartCount(owner: Owner): Promise<number> {
   return repo.countItems(cart.id);
 }
 
+/**
+ * Add to cart and return the refreshed cart, so the client needs no follow-up
+ * requests. Two database round trips in total: the atomic add, then the view.
+ */
 export async function addItem(
   owner: Owner,
   variantId: string,
   quantity: number,
-): Promise<AddItemResult> {
-  const variant = await repo.getVariant(variantId);
-  if (!variant) throw new AppError("NOT_FOUND", "This product is no longer available.");
+): Promise<AddItemResult & { cart: CartView | null }> {
+  let row = await repo.addItemAtomic(owner, variantId, quantity, MAX_QUANTITY, DEFAULT_COUNTRY);
+  // Two first-adds racing to create the same cart: the loser saw no cart. Retry once.
+  if (row.variantFound && !row.cartId) {
+    row = await repo.addItemAtomic(owner, variantId, quantity, MAX_QUANTITY, DEFAULT_COUNTRY);
+  }
+  if (!row.variantFound) throw new AppError("NOT_FOUND", "This product is no longer available.");
+  if (!row.cartId) throw new AppError("INTERNAL", "Could not add to your cart. Please try again.");
 
-  const cart = (await cartFor(owner)) ?? (await repo.createCart(owner, DEFAULT_COUNTRY));
+  const cart = await buildView({ id: row.cartId, estimateCountry: row.estimateCountry });
 
-  if (variant.stockQty <= 0) {
-    return {
-      appliedQuantity: 0,
-      clamped: true,
-      reason: "out_of_stock",
-      cartCount: await repo.countItems(cart.id),
-    };
+  if (row.stockQty <= 0 || row.newQty === null) {
+    return { appliedQuantity: 0, clamped: true, reason: "out_of_stock", cartCount: cart.count, cart };
   }
 
-  const { oldQty, newQty } = await repo.insertItem(
-    cart.id,
-    variantId,
-    quantity,
-    variant.priceCents,
-    variant.stockQty,
-    MAX_QUANTITY,
-  );
-  await repo.touchCart(cart.id);
-
-  const clamp = clampQuantity(quantity, oldQty, variant.stockQty, MAX_QUANTITY);
+  const applied = row.newQty - row.oldQty;
+  const clamp = clampQuantity(quantity, row.oldQty, row.stockQty, MAX_QUANTITY);
   return {
-    appliedQuantity: newQty - oldQty,
-    clamped: clamp.reason !== undefined && newQty - oldQty < quantity,
-    reason: newQty - oldQty < quantity ? clamp.reason ?? "stock" : undefined,
-    cartCount: await repo.countItems(cart.id),
+    appliedQuantity: applied,
+    clamped: clamp.reason !== undefined && applied < quantity,
+    reason: applied < quantity ? clamp.reason ?? "stock" : undefined,
+    cartCount: cart.count,
+    cart,
   };
 }
 
@@ -170,34 +166,29 @@ export async function setQuantity(
   owner: Owner,
   variantId: string,
   quantity: number,
-): Promise<{ quantity: number; clamped: boolean }> {
-  const cart = await cartFor(owner);
+): Promise<{ quantity: number; clamped: boolean; cart: CartView }> {
+  const [cart, variant] = await Promise.all([cartFor(owner), repo.getVariant(variantId)]);
   if (!cart) throw new AppError("NOT_FOUND", "Cart item not found.");
-  const variant = await repo.getVariant(variantId);
-  if (!variant) throw new AppError("NOT_FOUND", "This product is no longer available.");
 
-  if (quantity === 0) {
-    await repo.removeItem(cart.id, variantId);
-    await repo.touchCart(cart.id);
-    return { quantity: 0, clamped: false };
+  let applied = 0;
+  if (quantity === 0 || !variant) {
+    // A line whose product went away can still be removed.
+    if (quantity !== 0) throw new AppError("NOT_FOUND", "This product is no longer available.");
+    await Promise.all([repo.removeItem(cart.id, variantId), repo.touchCart(cart.id)]);
+  } else {
+    [applied] = await Promise.all([
+      repo.setItemQuantity(cart.id, variantId, quantity, variant.stockQty, MAX_QUANTITY),
+      repo.touchCart(cart.id),
+    ]);
   }
-
-  const applied = await repo.setItemQuantity(
-    cart.id,
-    variantId,
-    quantity,
-    variant.stockQty,
-    MAX_QUANTITY,
-  );
-  await repo.touchCart(cart.id);
-  return { quantity: applied, clamped: applied < quantity };
+  return { quantity: applied, clamped: applied < quantity, cart: await buildView(cart) };
 }
 
-export async function removeItem(owner: Owner, variantId: string): Promise<void> {
+export async function removeItem(owner: Owner, variantId: string): Promise<CartView> {
   const cart = await cartFor(owner);
   if (!cart) throw new AppError("NOT_FOUND", "Cart item not found.");
-  await repo.removeItem(cart.id, variantId);
-  await repo.touchCart(cart.id);
+  await Promise.all([repo.removeItem(cart.id, variantId), repo.touchCart(cart.id)]);
+  return buildView(cart);
 }
 
 export async function setEstimateCountry(owner: Owner, country: string): Promise<void> {

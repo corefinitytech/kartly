@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Menu, Search, ShoppingCart, User, X } from "lucide-react";
+import { Check, ChevronDown, Lock, Menu, Search, ShoppingCart, User, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { categoryDisplayName } from "@/modules/catalog/category-names";
@@ -220,6 +220,8 @@ export function SiteHeader({ categories }: { categories: CategoryWithCount[] }) 
   const { count: cartCount } = useCart();
   const bumping = useBump(cartCount ?? 0);
 
+  const isCheckout = pathname.startsWith("/checkout");
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -238,6 +240,25 @@ export function SiteHeader({ categories }: { categories: CategoryWithCount[] }) 
     menuRef.current?.querySelector<HTMLElement>("a, button")?.focus();
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
+
+  if (isCheckout) {
+    return (
+      <header className="sticky top-0 z-40 border-b border-line bg-brandDeep text-white">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 lg:px-6">
+          <Link href="/">
+            <Logo onDark />
+          </Link>
+          <p className="flex items-center gap-1.5 text-sm">
+            <Lock strokeWidth={1.75} className="h-4 w-4" aria-hidden="true" />
+            Secure checkout
+          </p>
+          <Link href="/cart" className="text-sm text-white underline underline-offset-4">
+            Cart
+          </Link>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header

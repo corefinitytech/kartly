@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { nextCookies } from "better-auth/next-js";
 import { hash, verify } from "@node-rs/argon2";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -62,11 +63,19 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,
+    // Signed session cookie reused for 5 minutes, so storefront requests skip
+    // a database round trip. Revocation (sign out elsewhere, password reset)
+    // therefore takes up to 5 minutes on the storefront; the admin guard
+    // bypasses the cache and always checks the database.
     cookieCache: {
-      enabled: false,
+      enabled: true,
+      maxAge: 5 * 60,
     },
   },
   advanced: {
+    // Our id columns are uuid (D-15). Without this Better Auth writes its own
+    // random string ids and every user/session insert fails.
+    database: { generateId: "uuid" },
     useCookiePrefix: true,
     defaultCookieAttributes: {
       httpOnly: true,
@@ -81,6 +90,9 @@ export const auth = betterAuth({
       locale: { type: "string", defaultValue: "en", input: false },
     },
   },
+  // Lets auth.api calls made inside server actions (sign in, sign up) set the
+  // session cookie on the response. Must stay the last plugin.
+  plugins: [nextCookies()],
   databaseHooks: {
     session: {
       create: {

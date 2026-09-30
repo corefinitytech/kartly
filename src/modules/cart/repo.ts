@@ -83,15 +83,103 @@ export async function insertItem(
       for update
     ), up as (
       insert into cart_items (cart_id, variant_id, qty, added_price_cents)
-      values (${cartId}, ${variantId}, least(${quantity}, least(${stockQty}, ${maxQuantity})), ${unitPriceCents})
+      values (${cartId}, ${variantId}, least(${quantity}::int, least(${stockQty}::int, ${maxQuantity}::int)), ${unitPriceCents}::int)
       on conflict (cart_id, variant_id) do update set
-        qty = least(cart_items.qty + excluded.qty, least(${stockQty}, ${maxQuantity})),
+        qty = least(cart_items.qty + excluded.qty, least(${stockQty}::int, ${maxQuantity}::int)),
         added_price_cents = excluded.added_price_cents
       returning qty
     )
     select (select qty from up) as new_qty, coalesce((select qty from prev), 0) as old_qty
   `);
   return { oldQty: result[0]?.old_qty ?? 0, newQty: result[0]?.new_qty ?? 0 };
+}
+
+export interface AddItemRow {
+  cartId: string | null;
+  estimateCountry: string | null;
+  variantFound: boolean;
+  stockQty: number;
+  oldQty: number;
+  newQty: number | null;
+  countBefore: number;
+}
+
+/**
+ * Add to cart in ONE round trip: find or create the owner's cart, check the
+ * variant is live, upsert the line clamped to stock and the per-line max, touch
+ * the cart, and read the count. The database is far from the app in dev
+ * (~250 ms per query), so round trips are what make the button feel slow.
+ * Data-modifying CTEs do not see each other's writes, so the caller derives
+ * the new count as countBefore - oldQty + newQty.
+ */
+export async function addItemAtomic(
+  owner: Owner,
+  variantId: string,
+  quantity: number,
+  maxQuantity: number,
+  defaultCountry: string,
+): Promise<AddItemRow> {
+  const ownerMatch =
+    owner.kind === "guest" ? sql`guest_token_hash = ${owner.tokenHash}` : sql`user_id = ${owner.userId}::uuid`;
+  const ownerInsert =
+    owner.kind === "guest"
+      ? sql`insert into carts (guest_token_hash, estimate_country) select ${owner.tokenHash}, ${defaultCountry}`
+      : sql`insert into carts (user_id, estimate_country) select ${owner.userId}::uuid, ${defaultCountry}`;
+  const rows = await db.execute<{
+    cart_id: string | null;
+    estimate_country: string | null;
+    variant_found: boolean;
+    stock_qty: number | null;
+    old_qty: number;
+    new_qty: number | null;
+    count_before: number;
+  }>(sql`
+    with v as (
+      select pv.id, pv.price_cents, pv.stock_qty
+      from product_variants pv join products p on p.id = pv.product_id
+      where pv.id = ${variantId}::uuid and p.status = 'active'
+    ), existing as (
+      select id, estimate_country from carts where ${ownerMatch} limit 1
+    ), created as (
+      ${ownerInsert}
+      where not exists (select 1 from existing) and exists (select 1 from v)
+      on conflict do nothing
+      returning id, estimate_country
+    ), cart as (
+      select id, estimate_country from existing union all select id, estimate_country from created limit 1
+    ), prev as (
+      select ci.qty from cart_items ci join cart on ci.cart_id = cart.id
+      where ci.variant_id = ${variantId}::uuid and ci.saved_for_later = false
+    ), up as (
+      insert into cart_items (cart_id, variant_id, qty, added_price_cents)
+      select cart.id, v.id, least(${quantity}::int, least(v.stock_qty, ${maxQuantity}::int)), v.price_cents
+      from cart, v where v.stock_qty > 0
+      on conflict (cart_id, variant_id) do update set
+        qty = least(cart_items.qty + excluded.qty, least((select stock_qty from v), ${maxQuantity}::int)),
+        added_price_cents = excluded.added_price_cents
+      returning qty
+    ), touch as (
+      update carts set updated_at = now() where id = (select id from existing) returning id
+    )
+    select (select id from cart) as cart_id,
+      (select estimate_country from cart) as estimate_country,
+      exists (select 1 from v) as variant_found,
+      (select stock_qty from v) as stock_qty,
+      coalesce((select qty from prev), 0)::int as old_qty,
+      (select qty from up) as new_qty,
+      (select coalesce(sum(ci.qty), 0) from cart_items ci
+        where ci.cart_id = (select id from existing) and ci.saved_for_later = false)::int as count_before
+  `);
+  const r = rows[0]!;
+  return {
+    cartId: r.cart_id,
+    estimateCountry: r.estimate_country,
+    variantFound: r.variant_found,
+    stockQty: r.stock_qty ?? 0,
+    oldQty: Number(r.old_qty),
+    newQty: r.new_qty === null ? null : Number(r.new_qty),
+    countBefore: Number(r.count_before),
+  };
 }
 
 export async function setItemQuantity(
@@ -102,7 +190,7 @@ export async function setItemQuantity(
   maxQuantity: number,
 ): Promise<number> {
   const result = await db.execute<{ qty: number }>(sql`
-    update cart_items set qty = least(${quantity}, least(${stockQty}, ${maxQuantity}))
+    update cart_items set qty = least(${quantity}::int, least(${stockQty}::int, ${maxQuantity}::int))
     where cart_id = ${cartId} and variant_id = ${variantId}
     returning qty
   `);

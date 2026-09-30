@@ -51,6 +51,7 @@ export const products = pgTable(
     index("products_search_vector_idx").using("gin", t.searchVector),
     index("products_title_trgm_idx").using("gist", sql`${t.title} gist_trgm_ops`),
     index("products_slug_idx").on(t.slug),
+    uniqueIndex("products_slug_unique").on(t.slug),
     index("products_category_id_idx").on(t.categoryId),
   ],
 );
@@ -100,6 +101,7 @@ export const inventoryLedger = pgTable(
     reason: text("reason").notNull(),
     refId: text("ref_id"),
     actorId: uuid("actor_id"),
+    note: text("note"),
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("inventory_ledger_variant_id_idx").on(t.variantId)],

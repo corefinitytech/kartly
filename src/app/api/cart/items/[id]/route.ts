@@ -43,8 +43,8 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<Record
 
     const { owner } = await resolveOwner();
     const id = variantId(await ctx.params);
-    await removeItem(owner, id);
-    return Response.json({ data: { removed: true } });
+    const cart = await removeItem(owner, id);
+    return Response.json({ data: { removed: true, cart } });
   } catch (error) {
     return errorResponse(error);
   }

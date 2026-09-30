@@ -28,7 +28,8 @@ export async function sendMail(payload: MailPayload): Promise<MailResult> {
       text: payload.text,
     });
     if (result.error) {
-      logger.error({ subject: payload.subject }, "email send failed");
+      // Resend's error name (e.g. validation_error) says why; its message can contain addresses, so it is not logged.
+      logger.error({ subject: payload.subject, reason: result.error.name }, "email send failed");
       return { success: false };
     }
     return { success: true };

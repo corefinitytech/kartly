@@ -8,6 +8,7 @@ import {
   type Owner,
 } from "@/modules/cart/identity";
 import { AppError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import { getSession } from "@/modules/auth/session";
 
 export interface OwnerContext {
@@ -50,6 +51,11 @@ export function errorResponse(error: unknown): Response {
   if (error instanceof AppError) {
     return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
+  // Unexpected: log the type and message (no request data, so no PII) so 500s are diagnosable.
+  logger.error(
+    { err: error instanceof Error ? `${error.name}: ${error.message.slice(0, 300)}` : "non-error thrown" },
+    "unhandled API error",
+  );
   return Response.json(
     { error: { code: "INTERNAL", message: "Something went wrong. Please try again." } },
     { status: 500 },

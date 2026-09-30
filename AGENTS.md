@@ -1,6 +1,6 @@
 # Kartly
 
-Kartly is a privacy-first, GDPR-ready e-commerce platform (single vendor, USD, global storefront with GDPR as baseline). Currently at milestone **M1 (browse: home, category, search, product pages, cookie consent)**. Feature work continues at M2 (cart).
+Kartly is a privacy-first, GDPR-ready e-commerce platform (single vendor, USD, global storefront with GDPR as baseline). M0 to M5 are built (foundation, browse, cart, accounts, checkout, minimal admin). Feature work continues at **M6 (GDPR privacy centre)**.
 
 **Read `docs/PRD.md` before making any changes. It is the single source of truth.**
 
@@ -24,6 +24,7 @@ Kartly is a privacy-first, GDPR-ready e-commerce platform (single vendor, USD, g
 - `npm run db:generate` — generate Drizzle migrations (`--custom` for hand written SQL)
 - `npm run db:migrate` — apply Drizzle migrations
 - `npm run db:seed` — import DummyJSON catalog data (seed ratings are synthetic)
+- `npm run admin:role -- <email> <admin|support|customer>` — grant a staff role (the user must have signed up)
 
 ## Conventions (from PRD Section 0)
 

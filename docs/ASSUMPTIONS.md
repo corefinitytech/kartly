@@ -59,3 +59,39 @@ Decisions taken under ambiguity, per PRD Section 0 rule 7. Each is the smallest 
 43. **Emails carry only the first name and a link.** Send failures never fail the flow; the mailer logs the subject only, no PII.
 44. **`kt_cart_merged` notice** is delivered by reading the merge result directly in the sign-in action redirect; no extra cookie is used.
 45. **Snapshot divergence:** migration 0003 is hand-written (`--custom`); future drizzle generates may re-diff the auth tables until the snapshot is realigned, so review generated SQL for auth tables before applying.
+
+## M4
+
+46. **No separate billing address form:** Stripe Elements collects billing details; the shipping address is the only address captured (per the cut list).
+47. **Demo tax rates** are used at checkout exactly as in the cart estimate; the checkout notes this in the summary.
+48. **Lazy expiry** (30 minutes) runs bounded to 20 orders on every place call plus one daily cron (`vercel.json`), not a frequent scheduler.
+49. **Guest token** lives in the URL fragment of the success link and in `sessionStorage`; the guest confirmation email links to the success page rather than embedding the token (the database stores only its hash, so the token cannot be recovered for the email).
+50. **Repo layer folded into the checkout/orders service modules** for this lean milestone; queries remain owner-scoped and the layering rule is not broken for future modules.
+51. **Stripe secret/webhook keys stay optional in env validation** so the site builds without them; the place route returns a friendly error when Stripe is unconfigured. The publishable key is read client-side from `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
+52. **The mini cart and cart page Checkout buttons** link straight to `/checkout` (the quote page redirects back when the cart is empty).
+
+## M5
+
+53. **Support permissions:** support can view orders and move them through processing, shipped and delivered (with tracking). Cancelling and refunding move money, so they are admin only, as are products, inventory and the audit log. The PRD lists support as "orders, masked customers, returns"; refund approval for returns (M8) can be granted to support then.
+54. **Masked PII for support:** support sees `j•••@e•••.com` and the city and country of the shipping address only. Admins see the full contact email and address.
+55. **12 hour admin session** (FR-AUTH-03) is enforced by the admin guard from the session's `created_at`, not by a separate cookie. A staff session older than 12 hours is deleted server-side on its next admin request and the user is sent to sign in. The storefront session length is unchanged.
+56. **Non-staff get a 404 at `/admin`**, not a 403, so the area is not advertised (same idea as AC-6).
+57. **Refund status rule:** order status tracks fulfilment first. A partial refund before delivery is recorded (refund row and timeline note) without changing the status; use Cancel for a full refund of an unshipped order. After delivery the order moves to `partially_refunded`, then `refunded`. The PRD's "paid onward -> partially_refunded" is narrowed this way so a partly refunded order can still ship.
+58. **Shipped orders cannot be cancelled** (the state machine has no shipped -> cancelled). Money for a shipped order goes back through Refund; returns arrive in M8.
+59. **Refund safety:** the refund row is reserved under a `for update` lock on the order before calling Stripe, so two admins cannot over-refund. It is sent with the idempotency key `refund-<id>` and marked failed if Stripe rejects it. `refund.created`, `refund.updated` and `refund.failed` webhooks update the row (matched by Stripe id or our `refund_id` metadata) and record refunds issued in the Stripe dashboard; those do not change the order status. **Enable these three events on the Stripe webhook endpoint.**
+60. **Stock changes only through Inventory:** the product editor never writes `stock_qty`, so it cannot overwrite a concurrent checkout decrement. New variants start at 0. Adjustments lock the variant row and write `inventory_ledger` (reason `adjust`, with the chosen reason and note in the new `note` column) in the same transaction. A `stock_qty >= 0` check constraint backs this in the database.
+61. **No hard delete of ordered products:** order history joins through variants, so products and variants that were ever ordered can only be unpublished. Never-ordered ones can be deleted, with their cart lines and uploaded images.
+62. **Unpublished means `draft`:** `products.status` is `active` (live) or `draft`. The storefront already shows only `active`, and carts already flag non-active lines as unavailable.
+63. **Product slugs are now unique** (index added in 0005; seed slugs are `title-id`, already unique). Slug edits break old links; there are no redirects.
+64. **Image uploads use Vercel Blob** (listed in PRD Section 3, so no ADR). The type is sniffed from the file bytes (JPEG, PNG, WebP only; no SVG), max 2 MB, with random 128-bit names. Without `BLOB_READ_WRITE_TOKEN` uploads are disabled with a message; existing seed images can still be reordered, described and removed. The server action body limit is raised to 3 MB for this.
+65. **Catalog cache after edits:** every product, variant, image or stock change calls `revalidateTag("catalog")` and `revalidatePath("/", "layout")`, so static catalog pages rebuild on the next request.
+66. **Audit log is append only in the database:** a trigger blocks every UPDATE and blocks DELETE of rows younger than 12 months, leaving room for the M6 retention job. The viewer shows staff names only; customer actors show as role and id.
+67. **Admin order search is by order number only.** Contact emails are encrypted with a random IV, so they cannot be searched without a blind index; that is left for the M8 customer search.
+68. **Roles are granted from the CLI** (`npm run admin:role -- <email> <role>`) until the M8 customer admin exists. It revokes the user's sessions so the new role applies at next sign in, and writes an audit entry with actor role `cli`.
+69. **Snapshot divergence continues:** migration 0005 is hand-written (`--custom`); the drizzle snapshot is still not realigned (see #45).
+70. **Session cookie cache (5 minutes)** on the storefront saves a database round trip per request. Trade-off: a session revoked elsewhere (sign out, password reset) keeps working on the storefront for up to 5 minutes. The admin guard passes `disableCookieCache`, so staff access ends immediately.
+71. **Prepared statements everywhere:** Drizzle's raw queries are sent as named prepared statements (postgres.js `unsafe` default flipped). Neon's pooler supports protocol-level prepared statements; if a pooler ever rejects them, remove `preferPrepared` in `src/lib/db.ts`.
+72. **Stale order expiry runs in the background** of place-order instead of before it; the daily cron still guarantees cleanup.
+73. **Vercel region `cle1`** (Cleveland) is pinned because Neon is in us-east-2 (Ohio). If the database moves, move the region with it.
+74. **Demo admin password `Test1@3` is below the 10 character signup rule** by the owner's choice. It is created by `npm run db:seed:admin` (sign-in does not re-check length). The admin sign-in form is prefilled only in development, or when `DEMO_ADMIN_PREFILL=true` is set.
+75. **Local payments need `stripe listen`:** orders become paid only through the verified webhook (D-05), which cannot reach localhost. Run `stripe listen --forward-to localhost:3000/api/webhooks/stripe` and start the dev server with the printed `whsec_` as `STRIPE_WEBHOOK_SECRET`; otherwise the success page shows "taking longer than usual".

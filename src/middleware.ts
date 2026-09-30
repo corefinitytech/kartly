@@ -3,15 +3,21 @@ import { NextResponse, type NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
+  const isCheckout = new URL(request.url).pathname.startsWith("/checkout");
+  const stripeSources = isCheckout
+    ? [
+        "https://js.stripe.com",
+      ]
+    : [];
 
   const csp = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ""}`.trim(),
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ""} ${stripeSources.join(" ")}`.trim(),
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: https:`,
     `font-src 'self'`,
-    `connect-src 'self' ${isDev ? "ws: wss:" : ""}`.trim(),
-    `frame-src 'none'`,
+    `connect-src 'self' ${isDev ? "ws: wss:" : ""} ${isCheckout ? "https://api.stripe.com" : ""}`.trim(),
+    `frame-src ${isCheckout ? "https://js.stripe.com https://hooks.stripe.com" : "'none'"}`,
     `frame-ancestors 'none'`,
     `object-src 'none'`,
     `base-uri 'self'`,
@@ -31,6 +37,7 @@ export const config = {
     "/search",
     "/cart",
     "/account/:path*",
+    "/admin/:path*",
     "/checkout/:path*",
     "/signup",
     "/login",

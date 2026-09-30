@@ -12,7 +12,7 @@ alter table "users" add column "updated_at" timestamptz not null default now();-
 drop index if exists "sessions_token_hash_unique";--> statement-breakpoint
 alter table "sessions" rename column "token_hash" to "token";--> statement-breakpoint
 alter table "sessions" rename column "ip_hash" to "ip_address";--> statement-breakpoint
-alter table "sessions" add column "user_agent" text;--> statement-breakpoint
+alter table "sessions" add column if not exists "user_agent" text;--> statement-breakpoint
 alter table "sessions" add column "updated_at" timestamptz not null default now();--> statement-breakpoint
 alter table "sessions" alter column "user_id" set not null;--> statement-breakpoint
 create unique index if not exists "sessions_token_unique" on "sessions" ("token");--> statement-breakpoint
