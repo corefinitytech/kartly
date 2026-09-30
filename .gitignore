@@ -29,7 +29,7 @@ coverage/
 Thumbs.db
 
 # Local agent tooling and capture-test artifacts
-.agent-logs/
+# .agent-logs/ is committed on purpose: the coding-agent session logs are part of the submission.
 .claude/
 .zcode/
 CAPTURE-TEST.md

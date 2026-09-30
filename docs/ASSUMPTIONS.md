@@ -95,3 +95,9 @@ Decisions taken under ambiguity, per PRD Section 0 rule 7. Each is the smallest 
 73. **Vercel region `cle1`** (Cleveland) is pinned because Neon is in us-east-2 (Ohio). If the database moves, move the region with it.
 74. **Demo admin password `Test1@3` is below the 10 character signup rule** by the owner's choice. It is created by `npm run db:seed:admin` (sign-in does not re-check length). The admin sign-in form is prefilled only in development, or when `DEMO_ADMIN_PREFILL=true` is set.
 75. **Local payments need `stripe listen`:** orders become paid only through the verified webhook (D-05), which cannot reach localhost. Run `stripe listen --forward-to localhost:3000/api/webhooks/stripe` and start the dev server with the printed `whsec_` as `STRIPE_WEBHOOK_SECRET`; otherwise the success page shows "taking longer than usual".
+76. **Voucher limits need sign in:** codes with a per customer limit or first order only are refused for guests (no stable identity). Unlimited codes work for guests.
+77. **Cancelled or expired orders give the code back** (database trigger on status -> cancelled). Refunded orders keep their redemption.
+78. **Min spend is checked on the whole post item discount subtotal; the discount touches only eligible lines** (scoped codes). A typed code that stops applying blocks place-order rather than charging a different total.
+79. **Rating aggregates come from real visible reviews via a trigger;** the first real review replaces the synthetic seed rating, and the product page shows 'Sample rating' only while there are none.
+80. **Review names are derived at read time** (first name + last initial from users.name); no copy of the name is stored.
+81. **Notifications store only an event key and order number/amount;** text is rendered from code. Guests get none. Shipped, delivered, cancelled and refund events need hook calls in the orders flows (other session).

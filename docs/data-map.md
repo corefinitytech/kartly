@@ -41,3 +41,11 @@ Legal basis reference: contract = Art. 6(1)(b); legal obligation = 6(1)(c); legi
 | products, categories, variants, images, inventory_ledger | No personal data | — | Catalog | — | Indefinite (business data) | None | Hosting region |
 
 Card data: never collected or stored (D-09). Date of birth: not collected (age confirmation only, 9.1).
+
+## M7 additions
+
+| Table.field | Personal data | Purpose | Retention |
+|---|---|---|---|
+| reviews.user_id, rating, title, body | Linked to a customer; display shows first name + last initial | Verified buyer reviews | Until the author deletes it or the account is erased (cascade) |
+| notifications.user_id, event_key, payload_json | Linked to a customer; payload has order number only | In-app order updates | 90 days (FR-NTF-07, job in M8); erased with the account |
+| voucher_redemptions.user_id | Links a customer to a code use | Usage limits | With the order; set null on account erasure |
