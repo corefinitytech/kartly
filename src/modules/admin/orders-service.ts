@@ -17,6 +17,13 @@ import {
 } from "@/modules/orders/state-machine";
 import { orderUpdateEmail, type OrderUpdateKind, type OrderUpdateEmailData } from "@/modules/orders/emails";
 import type { Staff } from "./guard";
+
+/** Who is changing an order: staff from the admin panel, or the customer cancelling their own. */
+export interface OrderActor {
+  id: string | null;
+  role: string;
+  ip: string | null;
+}
 import { can, maskEmail } from "./permissions";
 import * as repo from "./repo";
 import { REFUNDABLE_STATUSES, assertRefundAmount, refundableCents, statusAfterRefund } from "./rules";
@@ -263,7 +270,7 @@ export async function advanceOrder(staff: Staff, input: AdvanceOrderInput): Prom
  * Cancel before shipping (FR-ADM-05): restores stock in the same transaction,
  * then cancels the PaymentIntent (unpaid) or refunds what was paid.
  */
-export async function cancelOrder(staff: Staff, orderId: string, reason: string): Promise<{ refundError: string | null }> {
+export async function cancelOrder(staff: OrderActor, orderId: string, reason: string): Promise<{ refundError: string | null }> {
   const result = await db.transaction(async (tx) => {
     const rows = await tx.execute<{ number: string; status: string }>(sql`
       select number, status from orders where id = ${orderId} for update
@@ -280,7 +287,7 @@ export async function cancelOrder(staff: Staff, orderId: string, reason: string)
       await tx.execute(sql`update product_variants set stock_qty = stock_qty + ${line.qty} where id = ${line.variant_id}`);
       await tx.execute(sql`
         insert into inventory_ledger (variant_id, delta, reason, ref_id, actor_id, note)
-        values (${line.variant_id}, ${line.qty}, 'cancel', ${orderId}, ${staff.id}, 'order cancelled by staff')
+        values (${line.variant_id}, ${line.qty}, 'cancel', ${orderId}, ${staff.id}, ${staff.role === "customer" ? "order cancelled by customer" : "order cancelled by staff"})
       `);
     }
     await tx.execute(sql`update orders set status = 'cancelled' where id = ${orderId}`);
@@ -340,7 +347,7 @@ async function getOrderRefundState(orderId: string) {
  * is reserved under the order lock first, so two admins cannot over-refund.
  */
 export async function refundOrder(
-  staff: Staff,
+  staff: OrderActor,
   orderId: string,
   amountCents: number,
   reason: string,

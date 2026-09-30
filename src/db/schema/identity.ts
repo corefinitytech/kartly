@@ -24,6 +24,7 @@ export const users = pgTable(
     locale: text("locale").notNull().default("en"),
     referralCode: text("referral_code"),
     ageConfirmedAt: timestamp("age_confirmed_at", { withTimezone: true }),
+    deletionScheduledAt: timestamp("deletion_scheduled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -140,6 +141,23 @@ export const auditLog = pgTable(
     index("audit_log_entity_idx").on(t.entityType, t.entityId),
     index("audit_log_created_at_idx").on(t.createdAt),
   ],
+);
+
+export const dsarRequests = pgTable(
+  "dsar_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").notNull(),
+    status: text("status").notNull().default("received"),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    notes: text("notes"),
+    exportTokenHash: text("export_token_hash"),
+    exportExpiresAt: timestamp("export_expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("dsar_requests_user_id_idx").on(t.userId), index("dsar_requests_status_due_idx").on(t.status, t.dueAt)],
 );
 
 export const usersRelations = relations(users, ({ many }) => ({

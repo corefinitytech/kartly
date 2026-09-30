@@ -57,6 +57,38 @@ export function passwordChangedEmail(name: string): RenderedEmail {
   };
 }
 
+// Privacy (M6): privacy.export_ready, privacy.deletion_scheduled, privacy.deletion_done.
+
+export function exportReadyEmail(name: string, url: string): RenderedEmail {
+  const first = name.split(" ")[0] ?? name;
+  return {
+    subject: "Your Kartly data is ready",
+    html: wrap(`<p>Hi ${escapeHtml(first)},</p>
+<p>The copy of your data you asked for is ready. The link works for 24 hours and only while you are signed in to your account.</p>
+${button(url, "Download my data")}`),
+    text: `Hi ${first},\n\nThe copy of your data you asked for is ready. The link works for 24 hours and only while you are signed in.\n\n${url}`,
+  };
+}
+
+export function deletionScheduledEmail(name: string, runsOn: string, url: string): RenderedEmail {
+  const first = name.split(" ")[0] ?? name;
+  return {
+    subject: "Your account will be deleted",
+    html: wrap(`<p>Hi ${escapeHtml(first)},</p>
+<p>Your Kartly account is scheduled for deletion on ${escapeHtml(runsOn)}. Until then you can sign in and cancel it from your privacy page. After that, your personal data is removed and past orders are kept only in anonymized form for tax records.</p>
+${button(url, "Review or cancel")}`),
+    text: `Hi ${first},\n\nYour Kartly account is scheduled for deletion on ${runsOn}. Until then you can sign in and cancel it.\n\n${url}`,
+  };
+}
+
+export function deletionDoneEmail(): RenderedEmail {
+  return {
+    subject: "Your Kartly account was deleted",
+    html: wrap(`<p>Your Kartly account and personal data have been deleted. Past orders are kept only in anonymized form, as tax law requires. This is the last email we will send to this address.</p>`),
+    text: "Your Kartly account and personal data have been deleted. Past orders are kept only in anonymized form, as tax law requires. This is the last email we will send to this address.",
+  };
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

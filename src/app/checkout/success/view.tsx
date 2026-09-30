@@ -105,7 +105,11 @@ export function SuccessView({ orderNumber }: { orderNumber: string }) {
         </Button>
       </div>
       <p className="mt-6 text-sm text-inkSoft">
-        Keep your order link handy, or{" "}
+        Checked out as a guest? Find this order later with{" "}
+        <Link href="/orders/lookup" className="text-brandLink underline underline-offset-4">
+          your order number and email
+        </Link>
+        , or{" "}
         <a href="/signup" className="text-brandLink underline underline-offset-4">
           create an account
         </a>{" "}

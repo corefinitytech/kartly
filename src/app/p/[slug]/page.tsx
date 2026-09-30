@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sql } from "drizzle-orm";
-import { ChevronRight, MessageSquareOff } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { ProductGallery } from "@/components/product/gallery";
 import { BuyBox } from "@/components/cart/buy-box";
 import { RatingStars } from "@/components/rating-stars";
+import { ReviewsSection } from "@/components/product/reviews";
+import { getProductReviews } from "@/modules/reviews/service";
 import { getProductDetail } from "@/modules/catalog/service";
 import { categoryDisplayName } from "@/modules/catalog/category-names";
 import { buildCanonical, truncateAtWord } from "@/lib/seo";
@@ -62,6 +64,7 @@ export default async function ProductPage({ params }: PageProps) {
   const { slug } = await params;
   const product = await getProductDetail(slug);
   if (!product) notFound();
+  const reviewData = await getProductReviews(product.id);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 pb-24 lg:px-6 lg:pb-6">
@@ -105,8 +108,16 @@ export default async function ProductPage({ params }: PageProps) {
               </Link>
             </p>
           ) : null}
-          <RatingStars rating={product.ratingAvg} />
-          <p className="text-xs text-inkMuted">Sample rating</p>
+          {reviewData.summary.count > 0 ? (
+            <a href="#reviews" className="inline-flex w-fit items-center gap-2 underline-offset-4 hover:underline">
+              <RatingStars rating={reviewData.summary.average} count={reviewData.summary.count} />
+            </a>
+          ) : (
+            <>
+              <RatingStars rating={product.ratingAvg} />
+              <p className="text-xs text-inkMuted">Sample rating</p>
+            </>
+          )}
           {product.description ? (
             <div className="pt-2 text-base text-inkSoft">
               <h2 className="mb-1 text-lg font-semibold text-ink">About this product</h2>
@@ -140,16 +151,7 @@ export default async function ProductPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <section aria-labelledby="reviews" className="mt-10">
-        <h2 id="reviews" className="text-xl font-semibold">
-          Reviews
-        </h2>
-        <div className="anim-fade-in mt-3 flex flex-col items-start gap-2 rounded-card border border-line bg-surface px-6 py-10 text-left">
-          <MessageSquareOff strokeWidth={1.75} className="h-6 w-6 text-inkMuted" />
-          <p className="text-lg font-semibold">No reviews yet</p>
-          <p className="text-sm text-inkSoft">Reviews open once the first orders are delivered.</p>
-        </div>
-      </section>
+      <ReviewsSection productId={product.id} productSlug={product.slug} data={reviewData} />
     </div>
   );
 }

@@ -43,6 +43,20 @@
       "when": 1790747747480,
       "tag": "0005_admin_panel",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790755998830,
+      "tag": "0006_m6_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790756314048,
+      "tag": "0007_m7_vouchers_reviews_notifications",
+      "breakpoints": true
     }
   ]
 }

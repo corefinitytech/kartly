@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-30 (M6: privacy centre, first pass)
+Privacy Centre at `/account/privacy`: what we store, cookie settings, data export (step-up password, ZIP of JSON and CSV built at download, 24h signed link, emailed), account deletion (step-up + confirm, blocked by active orders, 7 day cool off, cancel), request list with due dates. Erasure job anonymizes orders and deletes personal rows per 9.4; daily retention cron `/api/cron/retention` (sessions, tokens, carts incl. FR-CART-07, unverified accounts, audit log > 12 months, DSAR records > 3 years, expired export links). Admin DSAR queue `/admin/privacy` with SLA countdown (admin only, `privacy.manage`). Consent re-prompts when the policy version changes (FR-GDPR-04). Rule tests added. Not yet browser-verified; governance docs not yet completed for M6.
+
+Files touched: drizzle/0006_m6_privacy.sql, src/db/schema/identity.ts, src/modules/privacy/{rules,dsar-service,retention-service,actions,admin-actions}.ts + rules.test.ts, src/modules/auth/emails.ts, src/app/account/privacy/{page,view}.tsx, src/app/account/nav.tsx, src/app/admin/privacy/{page,row}.tsx, src/app/admin/layout.tsx, src/modules/admin/permissions.ts + test, src/app/api/privacy/export/[token]/route.ts, src/app/api/cron/retention/route.ts, src/components/consent-provider.tsx, vercel.json, package.json.
+
+## 2026-09-30 (M0–M4 gaps)
+Customer cancel (FR-ORD-03) from the order page while pending payment, paid or processing: shares the admin cancel path, so stock is restored and payments are refunded through Stripe (verified: refund.created/updated webhooks 200). Guest order lookup by order number + checkout email (FR-ORD-02) at `/orders/lookup`, rate limited 10/hour, same answer for a wrong number or email; linked from the footer and the success page. Ownership check extracted to a pure `canAccessOrder` with IDOR tests (FR-SEC-07, AC-6), and a logger test proving PII fields are redacted (AC-11). Reserved and applied migration 0006 (M6: `dsar_requests`, `users.deletion_scheduled_at`).
+
+Files touched: src/modules/orders/{service,access-token}.ts + access-token.test.ts, src/modules/admin/orders-service.ts, src/app/api/orders/{_access.ts,lookup/route.ts,[number]/cancel/route.ts}, src/app/orders/[number]/view.tsx, src/app/orders/lookup/{page,form}.tsx, src/app/checkout/success/view.tsx, src/components/layout/site-footer.tsx, src/lib/logger.ts + logger.test.ts, drizzle/0006_m6_privacy.sql, src/db/schema/identity.ts.
+
 ## 2026-09-30 (sign-in fix)
 Sign-in and sign-up never worked against the real database: Better Auth wrote its own string ids into uuid columns (session insert failed, shown as "Email or password is incorrect"), and without the `nextCookies()` plugin the session cookie set inside server actions never reached the browser. Added `advanced.database.generateId: "uuid"` and `plugins: [nextCookies()]`. Verified in a browser: /admin, prefilled demo admin, sign in, lands on /admin/orders.
 

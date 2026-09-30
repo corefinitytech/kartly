@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COUNTRY_CODES } from "@/modules/addresses/schemas";
+import { voucherCodeSchema } from "@/modules/vouchers/schemas";
 
 export const shippingAddressSchema = z.object({
   fullName: z.string().trim().min(1, "Enter the full name.").max(100),
@@ -22,6 +23,7 @@ export type ShippingAddress = z.infer<typeof shippingAddressSchema>;
 export const quoteSchema = z.object({
   country: z.enum(COUNTRY_CODES),
   shippingMethodCode: z.string().trim().min(1).max(40),
+  voucherCode: voucherCodeSchema.optional(),
 });
 
 export const placeOrderSchema = z.object({
@@ -29,6 +31,7 @@ export const placeOrderSchema = z.object({
   address: shippingAddressSchema,
   shippingMethodCode: z.string().trim().min(1).max(40),
   saveAddress: z.boolean().optional(),
+  voucherCode: voucherCodeSchema.optional(),
 });
 
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;

@@ -13,6 +13,8 @@ export const PERMISSIONS = [
   "products.manage",
   "inventory.manage",
   "audit.view",
+  "vouchers.manage", // create, edit, activate promo codes (FR-ADM-08); admin only
+  "privacy.manage", // DSAR queue (FR-ADM-12); admin only: support has no DSAR execution
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

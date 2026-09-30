@@ -26,13 +26,10 @@ export const PII_REDACTION_PATHS = [
   "*.cvc",
 ];
 
-export function createRequestLogger(requestId: string) {
-  return pino({
-    redact: { paths: PII_REDACTION_PATHS, censor: "[redacted]" },
-    base: { requestId },
-  });
+export const LOGGER_OPTIONS = { redact: { paths: PII_REDACTION_PATHS, censor: "[redacted]" } } as const;
+
+export function createRequestLogger(requestId: string, destination?: pino.DestinationStream) {
+  return pino({ ...LOGGER_OPTIONS, base: { requestId } }, destination as pino.DestinationStream);
 }
 
-export const logger = pino({
-  redact: { paths: PII_REDACTION_PATHS, censor: "[redacted]" },
-});
+export const logger = pino(LOGGER_OPTIONS);

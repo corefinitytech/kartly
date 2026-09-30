@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Lock } from "lucide-react";
+import { Lock, TicketPercent, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +39,12 @@ interface QuoteData {
   freeShippingRemainingCents: number;
   shippingMethodName: string;
   taxCountry: string;
+  voucher: { code: string; applied: boolean; label: string | null; message: string | null } | null;
+}
+
+interface QuoteResponse {
+  data?: { quote: QuoteData | null; methods?: ShippingMethodOption[] };
+  error?: { message: string };
 }
 
 interface ShippingMethodOption {
@@ -87,6 +93,10 @@ export function CheckoutView() {
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
+  const [codeInput, setCodeInput] = useState("");
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [codeMessage, setCodeMessage] = useState("");
+  const [applying, setApplying] = useState(false);
   const idempotencyKey = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -122,22 +132,69 @@ export function CheckoutView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fetchQuote = async (voucherCode: string | null): Promise<{ ok: boolean; body: QuoteResponse }> => {
+    const response = await fetch("/api/checkout/quote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ country: form.country, shippingMethodCode: methodCode, ...(voucherCode ? { voucherCode } : {}) }),
+    });
+    const body = (await response.json().catch(() => ({}))) as QuoteResponse;
+    return { ok: response.ok, body };
+  };
+
+  // Totals always come from the server; the code is re-checked on every quote.
   useEffect(() => {
     const load = async () => {
-      const response = await fetch("/api/checkout/quote", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ country: form.country, shippingMethodCode: methodCode }),
-      });
-      if (!response.ok) return;
-      const body = (await response.json()) as { data?: { quote: QuoteData | null; methods?: ShippingMethodOption[] } };
-      setQuote(body.data?.quote ?? null);
+      const { ok, body } = await fetchQuote(appliedCode);
+      if (!ok) return;
+      const next = body.data?.quote ?? null;
+      setQuote(next);
       if (body.data?.methods && body.data.methods.length > 0) {
         setMethods(body.data.methods);
       }
+      if (appliedCode && next?.voucher && !next.voucher.applied) {
+        // A change (country, method, cart) made the code stop applying: say why.
+        setAppliedCode(null);
+        setCodeMessage(next.voucher.message ?? "This code no longer applies.");
+      }
     };
     void load();
-  }, [form.country, methodCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.country, methodCode, appliedCode]);
+
+  const onApplyCode = async () => {
+    const code = codeInput.trim();
+    if (!code) {
+      setCodeMessage("Enter a code first.");
+      return;
+    }
+    setApplying(true);
+    setCodeMessage("");
+    try {
+      const { ok, body } = await fetchQuote(code);
+      if (!ok) {
+        setCodeMessage(body.error?.message ?? "Could not check the code. Please try again.");
+        return;
+      }
+      const next = body.data?.quote ?? null;
+      if (next?.voucher?.applied) {
+        setQuote(next);
+        setAppliedCode(next.voucher.code);
+        setCodeInput("");
+      } else {
+        setCodeMessage(next?.voucher?.message ?? "This code cannot be used.");
+      }
+    } catch {
+      setCodeMessage("Network problem. Please try again.");
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const onRemoveCode = () => {
+    setAppliedCode(null);
+    setCodeMessage("");
+  };
 
   const available = useMemo(() => view?.lines.filter((l) => !l.unavailable) ?? [], [view]);
 
@@ -178,6 +235,7 @@ export function CheckoutView() {
             phone: form.phone,
           },
           shippingMethodCode: methodCode,
+          ...(appliedCode ? { voucherCode: appliedCode } : {}),
         }),
       });
       const body = (await response.json()) as {
@@ -241,7 +299,7 @@ export function CheckoutView() {
         </div>
         {quote && quote.discountCents > 0 ? (
           <div className="flex justify-between text-danger">
-            <dt>Discount</dt>
+            <dt>Discount{quote.voucher?.applied ? ` (${quote.voucher.code})` : ""}</dt>
             <dd className="price">−{formatCents(quote.discountCents)}</dd>
           </div>
         ) : null}
@@ -424,7 +482,9 @@ export function CheckoutView() {
                     { code: "express", name: "Express", priceCents: 1299, freeOverCents: null, minDays: 1, maxDays: 2 },
                   ]
               ).map((method) => {
-                const free = quote && method.freeOverCents !== null && quote.subtotalCents >= method.freeOverCents;
+                const free =
+                  (quote && method.freeOverCents !== null && quote.subtotalCents >= method.freeOverCents) ||
+                  (quote?.voucher?.applied && quote.voucher.label === "Free shipping");
                 return (
                   <li key={method.code}>
                     <label
@@ -451,6 +511,63 @@ export function CheckoutView() {
                 );
               })}
             </ul>
+          </section>
+
+          <section aria-labelledby="promo" className="rounded-card border border-line bg-surface p-5">
+            <h2 id="promo" className="flex items-center gap-2 text-lg font-semibold">
+              <TicketPercent strokeWidth={1.75} className="h-5 w-5" aria-hidden="true" />
+              Promo code
+            </h2>
+            {appliedCode ? (
+              <div className="anim-fade-in mt-3 flex flex-wrap items-center justify-between gap-2 rounded-btn border border-brand bg-brandTint px-3 py-2">
+                <p className="text-sm" role="status">
+                  <span className="font-mono font-semibold">{appliedCode}</span> applied
+                  {quote?.voucher?.label ? `: ${quote.voucher.label}` : ""}
+                </p>
+                <Button variant="text" size="sm" onClick={onRemoveCode} disabled={!!clientSecret} aria-label={`Remove code ${appliedCode}`}>
+                  <X strokeWidth={1.75} className="h-4 w-4" aria-hidden="true" />
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <form
+                className="mt-3 flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void onApplyCode();
+                }}
+              >
+                <label htmlFor="promoCode" className="sr-only">
+                  Promo code
+                </label>
+                <Input
+                  id="promoCode"
+                  value={codeInput}
+                  onChange={(e) => {
+                    setCodeInput(e.target.value);
+                    if (codeMessage) setCodeMessage("");
+                  }}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  maxLength={64}
+                  placeholder="Enter a code"
+                  aria-invalid={codeMessage ? true : undefined}
+                  aria-describedby={codeMessage ? "promoCode-message" : undefined}
+                  disabled={!!clientSecret}
+                  className="min-w-0 flex-1 uppercase placeholder:normal-case"
+                />
+                <Button type="submit" variant="tertiary" disabled={applying || !!clientSecret} className="shrink-0">
+                  {applying ? "Checking" : "Apply"}
+                </Button>
+              </form>
+            )}
+            {codeMessage ? (
+              <p id="promoCode-message" role="alert" className="mt-2 text-sm text-danger">
+                {codeMessage}
+              </p>
+            ) : null}
+            {clientSecret ? <p className="mt-2 text-sm text-inkMuted">The order is placed, so the code can no longer change.</p> : null}
           </section>
 
           <section aria-labelledby="payment" className="rounded-card border border-line bg-surface p-5">

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import {
   CONSENT_COOKIE_MAX_AGE,
   CONSENT_COOKIE_NAME,
+  isCompleteConsent,
   parseConsentCookie,
   serializeConsentCookie,
 } from "@/lib/consent-cookie";
@@ -78,7 +79,9 @@ export function ConsentProvider({ children }: { children: React.ReactNode }) {
         .slice(1)
         .join("="),
     );
-    setConsent(parsed);
+    // FR-GDPR-04: a choice made under an older policy version no longer counts;
+    // the banner asks again (keeping the same anon id) and nothing optional runs meanwhile.
+    setConsent(parsed && isCompleteConsent(parsed) ? parsed : null);
     setAnonId(parsed?.anonId ?? newAnonId());
     setReady(true);
   }, []);

@@ -6,6 +6,7 @@ import { useConsent } from "@/components/consent-provider";
 import { categoryDisplayName } from "@/modules/catalog/category-names";
 
 const HELP_LINKS = [
+  { href: "/orders/lookup", label: "Find an order" },
   { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
   { href: "/returns", label: "Returns policy" },

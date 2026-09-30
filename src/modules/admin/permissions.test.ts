@@ -15,6 +15,8 @@ describe("admin permissions", () => {
     expect(can("support", "products.manage")).toBe(false);
     expect(can("support", "inventory.manage")).toBe(false);
     expect(can("support", "audit.view")).toBe(false);
+    expect(can("support", "vouchers.manage")).toBe(false);
+    expect(can("support", "privacy.manage")).toBe(false);
   });
 
   it("gives customers and unknown roles nothing", () => {

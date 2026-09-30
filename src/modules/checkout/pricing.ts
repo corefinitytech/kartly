@@ -10,9 +10,15 @@ export interface PricingLine {
 
 export interface PricingVoucher {
   type: "percent" | "fixed_amount" | "free_shipping";
+  /** Percent 1-100, or cents for fixed_amount. Ignored for free_shipping. */
   value: number;
   minSpendCents?: number;
+  /** Lines the promo may discount. Omitted means every line. */
+  eligibleVariantIds?: readonly string[];
 }
+
+/** Why a supplied voucher did or did not change the price. */
+export type VoucherOutcome = "applied" | "min_spend" | "not_applicable";
 
 export interface PricingShippingMethod {
   priceCents: number;
@@ -51,6 +57,8 @@ export interface PricingResult {
   instrumentsCents: number;
   payableCents: number;
   freeShippingRemainingCents: number;
+  /** Present only when a voucher was supplied. */
+  voucherOutcome?: VoucherOutcome;
   breakdown: Record<string, unknown>;
 }
 
@@ -126,28 +134,43 @@ export function priceCart(input: PricingInput): PricingResult {
 
   const subtotalCents = baseLines.reduce((sum, l) => sum + l.afterCents, 0);
 
+  // Step 4: one order level promo (D-08). Min spend is checked on the whole
+  // post item discount subtotal; the discount itself only touches eligible lines.
   let voucherApplied = false;
+  let voucherOutcome: VoucherOutcome | undefined;
   let orderDiscount = 0;
   const subtotalBeforePromo = subtotalCents;
+  const eligibleMask = baseLines.map(
+    (l) => !input.voucher?.eligibleVariantIds || input.voucher.eligibleVariantIds.includes(l.line.variantId),
+  );
   if (input.voucher) {
     assertAmount(input.voucher.value, "voucher value");
+    if (input.voucher.type === "percent" && input.voucher.value > 100) {
+      throw new Error("percent voucher value must be at most 100");
+    }
     const minSpend = input.voucher.minSpendCents ?? 0;
     assertAmount(minSpend, "voucher minSpendCents");
-    const eligible = subtotalBeforePromo >= minSpend;
-    if (eligible && input.voucher.type === "percent") {
-      orderDiscount = Math.min(roundHalfUp((subtotalBeforePromo * input.voucher.value) / 100), subtotalBeforePromo);
+    const eligibleSubtotal = baseLines.reduce((sum, l, i) => sum + (eligibleMask[i] ? l.afterCents : 0), 0);
+    if (!eligibleMask.some(Boolean)) {
+      voucherOutcome = "not_applicable";
+    } else if (subtotalBeforePromo < minSpend) {
+      voucherOutcome = "min_spend";
+    } else {
+      voucherOutcome = "applied";
       voucherApplied = true;
-    } else if (eligible && input.voucher.type === "fixed_amount") {
-      orderDiscount = Math.min(input.voucher.value, subtotalBeforePromo);
-      voucherApplied = true;
-    } else if (input.voucher.type === "free_shipping") {
-      voucherApplied = true;
+      if (input.voucher.type === "percent") {
+        orderDiscount = roundHalfUp((eligibleSubtotal * input.voucher.value) / 100);
+      } else if (input.voucher.type === "fixed_amount") {
+        orderDiscount = input.voucher.value;
+      }
+      orderDiscount = Math.min(orderDiscount, eligibleSubtotal);
     }
   }
   orderDiscount = Math.min(orderDiscount, subtotalBeforePromo);
 
+  // Fixed and percent discounts are spread over eligible lines (exact sum) for refunds and tax.
   const promoSplit = largestRemainderSplit(
-    baseLines.map((l) => l.afterCents),
+    baseLines.map((l, i) => (eligibleMask[i] ? l.afterCents : 0)),
     orderDiscount,
   );
 
@@ -197,6 +220,7 @@ export function priceCart(input: PricingInput): PricingResult {
     freeShippingRemainingCents: freeShipping
       ? 0
       : freeShippingRemaining(subtotalAfterPromo, input.shippingMethod.freeOverCents),
+    ...(voucherOutcome ? { voucherOutcome } : {}),
     breakdown: {
       lines: baseLines.map((l, i) => ({
         variantId: l.line.variantId,
@@ -208,6 +232,7 @@ export function priceCart(input: PricingInput): PricingResult {
       })),
       subtotalCents: subtotalBeforePromo,
       orderDiscountCents: orderDiscount,
+      voucher: input.voucher ? { type: input.voucher.type, outcome: voucherOutcome } : null,
       subtotalAfterPromoCents: subtotalAfterPromo,
       shippingCents,
       freeShipping,

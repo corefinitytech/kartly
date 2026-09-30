@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/account/profile", label: "Profile" },
   { href: "/account/addresses", label: "Addresses" },
   { href: "/account/security", label: "Security" },
+  { href: "/account/privacy", label: "Privacy" },
 ];
 
 export function AccountNav({ firstName, showAdmin = false }: { firstName: string; showAdmin?: boolean }) {

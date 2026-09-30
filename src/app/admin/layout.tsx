@@ -16,6 +16,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/orders", label: "Orders", show: can(staff.role, "orders.view") },
     { href: "/admin/products", label: "Products", show: can(staff.role, "products.manage") },
     { href: "/admin/inventory", label: "Inventory", show: can(staff.role, "inventory.manage") },
+    { href: "/admin/vouchers", label: "Vouchers", show: can(staff.role, "vouchers.manage") },
+    { href: "/admin/privacy", label: "Privacy requests", show: can(staff.role, "privacy.manage") },
     { href: "/admin/audit", label: "Audit log", show: can(staff.role, "audit.view") },
   ]
     .filter((l) => l.show)

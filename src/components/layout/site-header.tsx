@@ -10,6 +10,7 @@ import type { CategoryWithCount } from "@/modules/catalog/service";
 import { useBump } from "@/components/use-bump";
 import { useCart } from "@/components/cart/cart-store";
 import { useSession } from "@/lib/auth-client";
+import { NotificationBell } from "@/components/notifications/bell";
 import { cn } from "@/lib/utils";
 
 interface Suggestion {
@@ -282,6 +283,7 @@ export function SiteHeader({ categories }: { categories: CategoryWithCount[] }) 
             <Link href="/" className="mx-auto">
               <Logo onDark />
             </Link>
+            <NotificationBell />
             <Link
               href="/cart"
               aria-label={`Cart, ${cartCount} items`}
@@ -316,6 +318,7 @@ export function SiteHeader({ categories }: { categories: CategoryWithCount[] }) 
                 <User strokeWidth={1.75} className="h-5 w-5" />
                 {session === undefined ? "" : session ? session.user.name.split(" ")[0] ?? "Account" : "Sign in"}
               </Link>
+              <NotificationBell />
               <Link
                 href="/cart"
                 aria-label={`Cart, ${cartCount} items`}

@@ -91,6 +91,80 @@ describe("vouchers", () => {
   it("gives free shipping with a free_shipping voucher", () => {
     const result = priceCart(input({ voucher: { type: "free_shipping", value: 0 } }));
     expect(result.shippingCents).toBe(0);
+    expect(result.voucherOutcome).toBe("applied");
+  });
+
+  it("keeps shipping when a free_shipping voucher misses its min spend", () => {
+    const result = priceCart(input({ voucher: { type: "free_shipping", value: 0, minSpendCents: 2000 } }));
+    expect(result.shippingCents).toBe(499);
+    expect(result.voucherOutcome).toBe("min_spend");
+  });
+
+  it("reports min_spend and leaves the total alone", () => {
+    const plain = priceCart(input());
+    const result = priceCart(input({ voucher: { type: "percent", value: 20, minSpendCents: 1001 } }));
+    expect(result.voucherOutcome).toBe("min_spend");
+    expect(result.totalCents).toBe(plain.totalCents);
+  });
+
+  it("rejects a percent above 100", () => {
+    expect(() => priceCart(input({ voucher: { type: "percent", value: 101 } }))).toThrow();
+  });
+
+  it("applies 100 percent without going negative", () => {
+    const result = priceCart(input({ voucher: { type: "percent", value: 100 } }));
+    expect(result.discountCents).toBe(1000);
+    expect(result.totalCents).toBe(499 + Math.round(499 * 0.07));
+  });
+
+  it("discounts only eligible lines and allocates to them only", () => {
+    const result = priceCart(
+      input({
+        lines: [
+          { variantId: "a", unitPriceCents: 2000, quantity: 1 },
+          { variantId: "b", unitPriceCents: 3000, quantity: 1 },
+        ],
+        voucher: { type: "percent", value: 10, eligibleVariantIds: ["b"] },
+      }),
+    );
+    expect(result.discountCents).toBe(300);
+    expect(result.lines.map((l) => l.discountCents)).toEqual([0, 300]);
+  });
+
+  it("caps a fixed voucher at the eligible lines' subtotal", () => {
+    const result = priceCart(
+      input({
+        lines: [
+          { variantId: "a", unitPriceCents: 2000, quantity: 1 },
+          { variantId: "b", unitPriceCents: 500, quantity: 1 },
+        ],
+        voucher: { type: "fixed_amount", value: 1000, eligibleVariantIds: ["b"] },
+      }),
+    );
+    expect(result.discountCents).toBe(500);
+    expect(result.lines.map((l) => l.discountCents)).toEqual([0, 500]);
+  });
+
+  it("reports not_applicable when no line is eligible", () => {
+    const result = priceCart(input({ voucher: { type: "percent", value: 10, eligibleVariantIds: ["other"] } }));
+    expect(result.voucherOutcome).toBe("not_applicable");
+    expect(result.discountCents).toBe(0);
+  });
+
+  it("computes tax after the promo (PRD 6 step 6)", () => {
+    const result = priceCart(input({ voucher: { type: "fixed_amount", value: 500 } }));
+    expect(result.taxCents).toBe(Math.round(((1000 - 500 + 499) * 700) / 10000));
+    expect(result.totalCents).toBe(500 + 499 + result.taxCents);
+  });
+
+  it("uses the post promo subtotal for the free shipping threshold", () => {
+    const result = priceCart(
+      input({
+        lines: [{ variantId: "a", unitPriceCents: 5000, quantity: 1 }],
+        voucher: { type: "fixed_amount", value: 1 },
+      }),
+    );
+    expect(result.shippingCents).toBe(499);
   });
 });
 
@@ -203,12 +277,14 @@ describe("property checks", () => {
         dealPriceCents: rand() > 0.7 ? Math.floor(rand() * 3000) : undefined,
         clippedCouponDiscountCents: rand() > 0.8 ? Math.floor(rand() * 500) : undefined,
       }));
+      const voucherType = (["percent", "fixed_amount", "free_shipping"] as const)[Math.floor(rand() * 3)]!;
       const voucher =
         rand() > 0.5
           ? {
-              type: (["percent", "fixed_amount", "free_shipping"] as const)[Math.floor(rand() * 3)]!,
-              value: Math.floor(rand() * 2000),
+              type: voucherType,
+              value: voucherType === "percent" ? Math.floor(rand() * 101) : Math.floor(rand() * 2000),
               minSpendCents: Math.floor(rand() * 3000),
+              eligibleVariantIds: rand() > 0.5 ? lines.filter(() => rand() > 0.4).map((l) => l.variantId) : undefined,
             }
           : undefined;
       const result = priceCart({

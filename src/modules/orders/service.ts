@@ -3,7 +3,9 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { decryptPii } from "@/lib/crypto";
-import { accessTokenMatches } from "./access-token";
+import { CUSTOMER_CANCELLABLE, canAccessOrder, type OrderAccess } from "./access-token";
+
+export { CUSTOMER_CANCELLABLE, canAccessOrder, type OrderAccess };
 
 export interface OrderListItem {
   id: string;
@@ -63,6 +65,7 @@ export async function listOrdersForUser(userId: string, page = 1): Promise<{ ite
 
 export interface OrderDetail {
   id: string;
+  canCancel: boolean;
   number: string;
   status: string;
   placedAt: string;
@@ -83,7 +86,7 @@ export interface OrderDetail {
 
 export async function getOrderDetailByNumber(
   number: string,
-  access: { userId: string } | { accessToken: string },
+  access: OrderAccess,
 ): Promise<OrderDetail> {
   const rows = await db.execute<{
     id: string; number: string; status: string; placed_at: DbTimestamp;
@@ -101,11 +104,12 @@ export async function getOrderDetailByNumber(
   const row = rows[0];
   if (!row) throw new AppError("NOT_FOUND", "Order not found.");
 
-  const owned =
-    "userId" in access
-      ? row.user_id === access.userId
-      : accessTokenMatches(access.accessToken, row.access_token_hash);
-  if (!owned) throw new AppError("NOT_FOUND", "Order not found.");
+  const contactEmail = row.contact_email_enc
+    ? decryptPii(row.contact_email_enc)
+    : row.guest_email_enc
+      ? decryptPii(row.guest_email_enc)
+      : "";
+  if (!canAccessOrder(row, access, contactEmail)) throw new AppError("NOT_FOUND", "Order not found.");
 
   const [items, events, payment, shipment, refunds] = await Promise.all([
     db.execute<{ title_snapshot: string; qty: number; unit_price_cents: number; discount_cents: number; tax_cents: number }>(sql`
@@ -130,11 +134,8 @@ export async function getOrderDetailByNumber(
     number: row.number,
     status: row.status,
     placedAt: toIso(row.placed_at),
-    contactEmail: row.contact_email_enc
-      ? decryptPii(row.contact_email_enc)
-      : row.guest_email_enc
-        ? decryptPii(row.guest_email_enc)
-        : "",
+    canCancel: (CUSTOMER_CANCELLABLE as readonly string[]).includes(row.status),
+    contactEmail,
     shippingAddress: row.shipping_address_json_enc
       ? (JSON.parse(decryptPii(row.shipping_address_json_enc)) as Record<string, unknown>)
       : null,
@@ -171,4 +172,25 @@ export async function getOrderDetailByNumber(
       : null,
     refunds: refunds.map((r) => ({ amountCents: r.amount_cents, status: r.status, at: toIso(r.at) })),
   };
+}
+
+/**
+ * Customer cancel (FR-ORD-03): same path as the admin cancel, so stock comes
+ * back and any payment is refunded through Stripe in one place.
+ */
+export async function cancelOwnOrder(
+  number: string,
+  access: OrderAccess,
+  ip: string | null,
+): Promise<{ refundError: string | null }> {
+  const order = await getOrderDetailByNumber(number, access);
+  if (!order.canCancel) {
+    throw new AppError("CONFLICT", "This order has already shipped, so it can no longer be cancelled.");
+  }
+  const { cancelOrder } = await import("@/modules/admin/orders-service");
+  return cancelOrder(
+    { id: "userId" in access ? access.userId : null, role: "customer", ip },
+    order.id,
+    "Cancelled by the customer",
+  );
 }

@@ -16,23 +16,30 @@ import { requireStripeClient, stripeClient } from "@/lib/stripe";
 import { sendMail } from "@/lib/mailer";
 import { orderConfirmationEmail } from "@/modules/orders/emails";
 import { decryptPii, encryptPii } from "@/lib/crypto";
+import * as vouchers from "@/modules/vouchers/service";
+import { notifyOrder } from "@/modules/notifications/service";
 
 export interface QuoteResult extends PricingResult {
   shippingMethodName: string;
   taxCountry: string;
+  voucher: vouchers.VoucherSummary | null;
 }
+
+const ownerUserId = (owner: Owner): string | null => (owner.kind === "user" ? owner.userId : null);
 
 export async function quote(
   owner: Owner,
   country: string,
   shippingMethodCode: string,
+  voucherCode?: string,
 ): Promise<QuoteResult | null> {
   const cart = await cartRepo.findCart(owner);
   if (!cart) return null;
-  const [lineRows, methods, taxRates] = await Promise.all([
+  const [lineRows, methods, taxRates, voucher] = await Promise.all([
     cartRepo.getLines(cart.id),
     cartRepo.getShippingMethods(),
     cartRepo.getTaxRates(),
+    voucherCode ? vouchers.evaluateForCart(voucherCode, ownerUserId(owner), cart.id) : null,
   ]);
   const method = methods.find((m) => m.code === shippingMethodCode && m.isActive);
   if (!method) throw new AppError("VALIDATION", "Unknown shipping method.");
@@ -45,10 +52,16 @@ export async function quote(
       unitPriceCents: r.unitPriceCents,
       quantity: r.qty,
     })),
+    voucher: voucher?.pricingVoucher,
     shippingMethod: { priceCents: method.priceCents, freeOverCents: method.freeOverCents },
     taxRateBps: tax?.rateBps ?? 0,
   });
-  return { ...pricing, shippingMethodName: method.name, taxCountry: country };
+  return {
+    ...pricing,
+    shippingMethodName: method.name,
+    taxCountry: country,
+    voucher: voucher ? vouchers.summarize(voucher, pricing) : null,
+  };
 }
 
 async function findIdempotentOrder(key: string): Promise<{ id: string; number: string } | null> {
@@ -95,10 +108,11 @@ export async function placeOrder(
 
   if (!cart) throw new AppError("VALIDATION", "Your cart is empty.");
 
-  const [lineRows, methods, taxRates] = await Promise.all([
+  const [lineRows, methods, taxRates, voucher] = await Promise.all([
     cartRepo.getLines(cart.id),
     cartRepo.getShippingMethods(),
     cartRepo.getTaxRates(),
+    input.voucherCode ? vouchers.evaluateForCart(input.voucherCode, ownerUserId(owner), cart.id) : null,
   ]);
   const unavailable = lineRows.filter((r) => r.productStatus !== "active" || r.stockQty <= 0);
   if (lineRows.length === 0) throw new AppError("VALIDATION", "Your cart is empty.");
@@ -115,9 +129,17 @@ export async function placeOrder(
       unitPriceCents: r.unitPriceCents,
       quantity: r.qty,
     })),
+    voucher: voucher?.pricingVoucher,
     shippingMethod: { priceCents: method.priceCents, freeOverCents: method.freeOverCents },
     taxRateBps: tax?.rateBps ?? 0,
   });
+  // A code the shopper typed must apply, or the order is not placed: never
+  // charge a total they did not see.
+  const voucherSummary = voucher ? vouchers.summarize(voucher, priced) : null;
+  if (voucherSummary && !voucherSummary.applied) {
+    throw new AppError("VALIDATION", voucherSummary.message ?? "This code cannot be used.");
+  }
+  const voucherId = voucher && voucherSummary?.applied ? voucher.rule!.id : null;
   const pricedById = new Map(priced.lines.map((l) => [l.variantId, l]));
   const snapshot = buildOrderSnapshot(
     lineRows.map((r) => ({
@@ -145,7 +167,7 @@ export async function placeOrder(
           insert into orders (number, user_id, guest_email_enc, status, currency,
             subtotal_cents, discount_cents, shipping_cents, tax_cents, total_cents,
             instruments_cents, payable_cents, pricing_json, shipping_address_json_enc,
-            shipping_method_code, source_cart_id, idempotency_key, access_token_hash, contact_email_enc)
+            shipping_method_code, source_cart_id, idempotency_key, access_token_hash, contact_email_enc, voucher_id)
           values (${number}, ${owner.kind === "user" ? owner.userId : null},
             ${owner.kind === "guest" ? encryptPii(input.contactEmail) : null},
             'pending_payment', 'USD',
@@ -155,7 +177,7 @@ export async function placeOrder(
             ${encryptPii(JSON.stringify(input.address))},
             ${method.code}, ${cart.id}, ${idempotencyKey},
             ${accessToken ? hashAccessToken(accessToken) : null},
-            ${encryptPii(input.contactEmail)})
+            ${encryptPii(input.contactEmail)}, ${voucherId})
           returning id
         `);
         orderRowId = inserted[0]!.id;
@@ -167,6 +189,8 @@ export async function placeOrder(
       }
     }
     if (!orderRowId) throw new AppError("INTERNAL", "Could not create the order. Please try again.");
+
+    if (voucherId) await vouchers.redeemInTx(tx, voucherId, ownerUserId(owner), orderRowId);
 
     const outOfStock: string[] = [];
     for (const line of lineRows) {
@@ -294,6 +318,7 @@ export async function markOrderPaidByOrderId(orderId: string, intent: { id: stri
   });
   await writeAudit({ actorId: null, actorRole: null, action: "order.payment_succeeded", entityType: "order", entityId: orderId, ip }).catch(() => undefined);
   void sendConfirmation(orderId).catch(() => undefined);
+  void notifyOrder(orderId, "order.placed");
 }
 
 export async function sendConfirmation(orderId: string): Promise<void> {
@@ -372,6 +397,7 @@ export async function expireStaleOrders(limit = 20): Promise<number> {
       await stripe?.paymentIntents.cancel(intentId).catch(() => undefined);
     }
     await writeAudit({ actorId: null, actorRole: null, action: "order.expired", entityType: "order", entityId: order.id }).catch(() => undefined);
+    void notifyOrder(order.id, "order.cancelled", { reason: "payment_expired" });
   }
   return stale.length;
 }
